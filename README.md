@@ -51,7 +51,7 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 
 ## Deploy en Vercel
 
-1. Importa el repo en Vercel y agrega las mismas variables de entorno del paso 3 (incluyendo `NEXT_PUBLIC_SITE_URL` con el dominio real).
+1. Importa el repo en Vercel y agrega las mismas variables de entorno del paso 3.
 2. El cron definido en [`vercel.json`](./vercel.json) corre todos los días a las 13:00 UTC (Vercel Cron siempre usa UTC; ajusta la hora según tu zona horaria). El plan Hobby permite como máximo una ejecución diaria por cron job.
 3. Corre `setWebhook` (paso anterior) apuntando al dominio de producción.
 
