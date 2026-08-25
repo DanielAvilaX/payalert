@@ -190,20 +190,22 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+          aria-label="Editar"
+          title="Editar"
+          className="rounded-md p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
         >
           <Pencil size={14} />
-          <span className="hidden sm:inline">Editar</span>
         </button>
         {!payment.is_paid && (
           <button
             type="button"
             disabled={pending}
             onClick={handleMarkPaid}
-            className="flex items-center gap-1 rounded-md px-2 py-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
+            aria-label="Marcar pagado"
+            title="Marcar pagado"
+            className="rounded-md p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
           >
             {pending ? <Spinner size={14} /> : <CheckCircle2 size={14} />}
-            <span className="hidden sm:inline">Marcar pagado</span>
           </button>
         )}
         <button
