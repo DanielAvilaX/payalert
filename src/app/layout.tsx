@@ -23,7 +23,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <div className="bg-orbs" aria-hidden="true">
+          <div className="bg-orb bg-orb-1" />
+          <div className="bg-orb bg-orb-2" />
+          <div className="bg-orb bg-orb-3" />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

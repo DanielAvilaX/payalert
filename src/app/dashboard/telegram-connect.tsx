@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Send } from "lucide-react";
+import Image from "next/image";
+import { ExternalLink, Link2, Unlink } from "lucide-react";
 import {
   disconnectTelegram,
   generateTelegramLinkToken,
 } from "@/app/dashboard/actions";
+import { Spinner } from "@/app/dashboard/spinner";
 
 export function TelegramConnect({ connected }: { connected: boolean }) {
   const [link, setLink] = useState<string | null>(null);
@@ -13,15 +15,23 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="glass-panel flex items-center justify-between rounded-xl p-4">
+      <div className="glass-panel flex items-center justify-between rounded-xl p-4 animate-pop-in">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
-            <Send size={18} />
-          </div>
+          <Image
+            src="/telegram-connect.png"
+            alt=""
+            width={40}
+            height={40}
+            className="rounded-full"
+          />
           <p className="text-sm">Telegram conectado — recibirás tus recordatorios ahí.</p>
         </div>
         <form action={disconnectTelegram}>
-          <button type="submit" className="text-sm text-red-400 hover:underline">
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-sm text-red-400 hover:underline"
+          >
+            <Unlink size={14} />
             Desconectar
           </button>
         </form>
@@ -30,11 +40,15 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="glass-panel flex flex-col gap-4 rounded-xl p-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass-panel flex flex-col gap-4 rounded-xl p-5 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <Send size={22} />
-        </div>
+        <Image
+          src="/telegram-connect.png"
+          alt=""
+          width={52}
+          height={52}
+          className="shrink-0 rounded-full"
+        />
         <div>
           <p className="font-medium">Conecta Telegram para recibir recordatorios.</p>
           <p className="text-sm text-muted">
@@ -48,8 +62,9 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
           href={link}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-white hover:bg-accent-dark"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95"
         >
+          <ExternalLink size={16} />
           Abrir en Telegram
         </a>
       ) : (
@@ -63,8 +78,9 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
               setLink(`https://t.me/${username}?start=${token}`);
             })
           }
-          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
         >
+          {pending ? <Spinner /> : <Link2 size={16} />}
           {pending ? "Generando enlace..." : "Generar enlace de conexión"}
         </button>
       )}

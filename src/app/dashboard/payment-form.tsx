@@ -1,25 +1,35 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { PlusCircle } from "lucide-react";
 import { createPayment, type ActionState, type Recurrence } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { detectLogo, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
+import { Select } from "@/app/dashboard/select";
+import { Spinner } from "@/app/dashboard/spinner";
 
-const WEEKDAYS = [
-  { value: 1, label: "Lunes" },
-  { value: 2, label: "Martes" },
-  { value: 3, label: "Miércoles" },
-  { value: 4, label: "Jueves" },
-  { value: 5, label: "Viernes" },
-  { value: 6, label: "Sábado" },
-  { value: 0, label: "Domingo" },
+const RECURRENCE_OPTIONS = [
+  { value: "none", label: "Único" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensual" },
+  { value: "yearly", label: "Anual" },
 ];
 
-const MONTHS = [
+const WEEKDAY_OPTIONS = [
+  { value: "1", label: "Lunes" },
+  { value: "2", label: "Martes" },
+  { value: "3", label: "Miércoles" },
+  { value: "4", label: "Jueves" },
+  { value: "5", label: "Viernes" },
+  { value: "6", label: "Sábado" },
+  { value: "0", label: "Domingo" },
+];
+
+const MONTH_OPTIONS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
+].map((label, i) => ({ value: String(i + 1), label }));
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";
@@ -30,6 +40,8 @@ export function PaymentForm() {
   const [name, setName] = useState("");
   const [logo, setLogo] = useState<LogoId>("money");
   const [logoManual, setLogoManual] = useState(false);
+  const [month, setMonth] = useState("");
+  const [weekday, setWeekday] = useState("");
   const [state, action, pending] = useActionState<ActionState, FormData>(
     createPayment,
     undefined
@@ -89,21 +101,13 @@ export function PaymentForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor="recurrence" className={labelClass}>
-            Frecuencia
-          </label>
-          <select
-            id="recurrence"
+          <label className={labelClass}>Frecuencia</label>
+          <Select
             name="recurrence"
             value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value as Recurrence)}
-            className={inputClass}
-          >
-            <option value="none">Único</option>
-            <option value="weekly">Semanal</option>
-            <option value="monthly">Mensual</option>
-            <option value="yearly">Anual</option>
-          </select>
+            onChange={(v) => setRecurrence(v as Recurrence)}
+            options={RECURRENCE_OPTIONS}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -130,28 +134,28 @@ export function PaymentForm() {
                 max={31}
                 placeholder="Día"
                 required
-                className={inputClass}
+                className={`${inputClass} w-1/2`}
               />
-              <select name="month" required className={inputClass}>
-                <option value="">Mes</option>
-                {MONTHS.map((label, i) => (
-                  <option key={label} value={i + 1}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <div className="w-1/2">
+                <Select
+                  name="month"
+                  value={month}
+                  onChange={setMonth}
+                  options={MONTH_OPTIONS}
+                  placeholder="Mes"
+                />
+              </div>
             </div>
           )}
 
           {recurrence === "weekly" && (
-            <select name="weekday" required className={inputClass}>
-              <option value="">Día de la semana</option>
-              {WEEKDAYS.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <Select
+              name="weekday"
+              value={weekday}
+              onChange={setWeekday}
+              options={WEEKDAY_OPTIONS}
+              placeholder="Día de la semana"
+            />
           )}
 
           {recurrence === "none" && (
@@ -177,8 +181,9 @@ export function PaymentForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
       >
+        {pending ? <Spinner size={16} /> : <PlusCircle size={16} />}
         {pending ? "Agregando..." : "Agregar pago"}
       </button>
     </form>

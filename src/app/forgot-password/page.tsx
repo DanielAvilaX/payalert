@@ -3,7 +3,9 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Send } from "lucide-react";
 import { requestPasswordReset, type AuthState } from "@/app/actions/auth";
+import { Spinner } from "@/app/dashboard/spinner";
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
 
@@ -20,7 +22,7 @@ export default function ForgotPasswordPage() {
         <span className="text-lg font-semibold">PayAlert</span>
       </div>
 
-      <div className="glass-panel w-full max-w-sm rounded-xl p-6">
+      <div className="glass-panel animate-pop-in w-full max-w-sm rounded-xl p-6">
         <h1 className="mb-6 text-xl font-semibold">Recuperar contraseña</h1>
 
         <form action={action} className="flex flex-col gap-4">
@@ -37,8 +39,9 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
           >
+            {pending ? <Spinner size={16} /> : <Send size={16} />}
             {pending ? "Enviando..." : "Enviar enlace"}
           </button>
         </form>

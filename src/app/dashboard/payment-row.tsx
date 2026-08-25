@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil, CheckCircle2, X } from "lucide-react";
 import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
+import { Spinner } from "@/app/dashboard/spinner";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
@@ -36,7 +37,7 @@ function LogoBadge({ logo }: { logo: string | null }) {
     return (
       <div
         title={cfg.label}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10"
       >
         <Icon size={18} />
       </div>
@@ -49,12 +50,12 @@ function LogoBadge({ logo }: { logo: string | null }) {
       width={40}
       height={40}
       title={cfg.label}
-      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+      className="h-10 w-10 shrink-0 rounded-full object-cover"
     />
   );
 }
 
-export function PaymentRow({ payment }: { payment: Payment }) {
+export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: number }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -100,9 +101,11 @@ export function PaymentRow({ payment }: { payment: Payment }) {
     });
   }
 
+  const style = { animationDelay: `${index * 60}ms` };
+
   if (editing) {
     return (
-      <li className="glass-panel rounded-xl p-4">
+      <li className="glass-panel animate-pop-in rounded-xl p-4" style={style}>
         <form action={handleSave} className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <input name="name" defaultValue={payment.name} required className={inputClass} />
@@ -144,15 +147,17 @@ export function PaymentRow({ payment }: { payment: Payment }) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
             >
+              {pending ? <Spinner size={14} /> : <CheckCircle2 size={14} />}
               {pending ? "Guardando..." : "Guardar"}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="text-sm text-muted hover:text-foreground"
+              className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
             >
+              <X size={14} />
               Cancelar
             </button>
           </div>
@@ -162,7 +167,10 @@ export function PaymentRow({ payment }: { payment: Payment }) {
   }
 
   return (
-    <li className="glass-panel flex items-center justify-between gap-3 rounded-xl p-3">
+    <li
+      className="glass-panel animate-pop-in flex items-center justify-between gap-3 rounded-xl p-3"
+      style={style}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <LogoBadge logo={payment.logo} />
         <div className="min-w-0">
@@ -178,18 +186,24 @@ export function PaymentRow({ payment }: { payment: Payment }) {
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3 text-sm">
-        <button type="button" onClick={() => setEditing(true)} className="text-muted hover:text-foreground">
-          Editar
+      <div className="flex shrink-0 items-center gap-2 text-sm">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+        >
+          <Pencil size={14} />
+          <span className="hidden sm:inline">Editar</span>
         </button>
         {!payment.is_paid && (
           <button
             type="button"
             disabled={pending}
             onClick={handleMarkPaid}
-            className="text-muted hover:text-foreground disabled:opacity-50"
+            className="flex items-center gap-1 rounded-md px-2 py-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
           >
-            Marcar pagado
+            {pending ? <Spinner size={14} /> : <CheckCircle2 size={14} />}
+            <span className="hidden sm:inline">Marcar pagado</span>
           </button>
         )}
         <button
@@ -197,7 +211,7 @@ export function PaymentRow({ payment }: { payment: Payment }) {
           disabled={pending}
           onClick={handleDelete}
           aria-label={`Eliminar ${payment.name}`}
-          className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+          className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition hover:bg-red-500/20 active:scale-95 disabled:opacity-50"
         >
           <Trash2 size={14} />
         </button>

@@ -57,8 +57,12 @@ export function StatCards({
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {stats.map(({ label, value, hint, icon: Icon, bg, fg }) => (
-        <div key={label} className="glass-panel rounded-xl p-4">
+      {stats.map(({ label, value, hint, icon: Icon, bg, fg }, i) => (
+        <div
+          key={label}
+          className="glass-panel animate-pop-in rounded-xl p-4"
+          style={{ animationDelay: `${i * 70}ms` }}
+        >
           <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
             <Icon size={18} className={fg} />
           </div>

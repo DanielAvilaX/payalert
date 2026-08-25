@@ -3,6 +3,7 @@ import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { PaymentForm } from "@/app/dashboard/payment-form";
 import { PaymentRow } from "@/app/dashboard/payment-row";
 import { StatCards } from "@/app/dashboard/stat-cards";
+import { Greeting } from "@/app/dashboard/greeting";
 
 function startOfMonthISO(): string {
   const now = new Date();
@@ -43,10 +44,15 @@ export default async function DashboardPage() {
 
   const activeReminders = telegramConnection ? unpaid.length : 0;
 
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
+    user?.email?.split("@")[0] ??
+    "";
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold">Nuevo pago</h1>
+        <Greeting name={displayName} />
         <p className="text-sm text-muted">
           Crea un recordatorio de pago y recibe alertas en Telegram.
         </p>
@@ -62,7 +68,7 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section id="nuevo-pago" className="glass-panel rounded-xl p-5">
+        <section id="nuevo-pago" className="glass-panel animate-pop-in rounded-xl p-5">
           <h2 className="mb-4 text-lg font-medium">Información del pago</h2>
           <PaymentForm />
         </section>
@@ -71,8 +77,8 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-medium">Tus pagos</h2>
           {payments?.length ? (
             <ul className="flex flex-col gap-2">
-              {payments.map((payment) => (
-                <PaymentRow key={payment.id} payment={payment} />
+              {payments.map((payment, i) => (
+                <PaymentRow key={payment.id} payment={payment} index={i} />
               ))}
             </ul>
           ) : (

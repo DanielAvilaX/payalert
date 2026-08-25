@@ -12,9 +12,9 @@ function LogoThumb({ id, size }: { id: LogoId; size: number }) {
     return (
       <div
         style={{ width: size, height: size }}
-        className="flex items-center justify-center rounded-md bg-white/10 text-foreground"
+        className="flex shrink-0 items-center justify-center rounded-full bg-white/10 text-foreground"
       >
-        <Icon size={size * 0.6} />
+        <Icon size={size * 0.55} />
       </div>
     );
   }
@@ -24,7 +24,7 @@ function LogoThumb({ id, size }: { id: LogoId; size: number }) {
       alt=""
       width={size}
       height={size}
-      className="rounded-md object-cover"
+      className="shrink-0 rounded-full object-cover"
       style={{ width: size, height: size }}
     />
   );
@@ -59,7 +59,7 @@ export function LogoPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="glass-input flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm"
+        className="glass-input flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition active:scale-95"
       >
         <LogoThumb id={value} size={22} />
         <span className="truncate">{current.label}</span>
@@ -67,7 +67,7 @@ export function LogoPicker({
       </button>
 
       {open && (
-        <div className="glass-panel absolute z-20 mt-2 grid max-h-64 w-full min-w-[16rem] grid-cols-4 gap-2 overflow-y-auto rounded-lg p-3 shadow-xl">
+        <div className="glass-panel absolute z-20 mt-2 grid max-h-64 w-full min-w-[16rem] grid-cols-4 gap-2 overflow-y-auto rounded-lg p-3 shadow-xl animate-pop-in">
           {LOGO_OPTIONS.map(([id, cfg]) => (
             <button
               key={id}
