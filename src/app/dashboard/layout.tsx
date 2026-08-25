@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/actions/auth";
 import { SidebarNav } from "@/app/dashboard/sidebar-nav";
+import { MobileNav } from "@/app/dashboard/mobile-nav";
 
 export default async function DashboardLayout({
   children,
@@ -73,7 +74,9 @@ export default async function DashboardLayout({
         </div>
       </aside>
 
-      <main className="px-4 py-8 md:ml-64 md:px-10">{children}</main>
+      <main className="px-4 py-8 pb-24 md:ml-64 md:px-10 md:pb-8">{children}</main>
+
+      <MobileNav />
     </div>
   );
 }
