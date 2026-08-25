@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { createPayment, type Recurrence } from "@/app/dashboard/actions";
+import { useActionState, useState } from "react";
+import { createPayment, type ActionState, type Recurrence } from "@/app/dashboard/actions";
+import { formatMoneyInput } from "@/lib/format";
 
 const WEEKDAYS = [
   { value: 1, label: "Lunes" },
@@ -18,18 +19,16 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-function formatMoney(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  return `$${Number(digits).toLocaleString("es-CO")}`;
-}
-
 export function PaymentForm() {
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [amount, setAmount] = useState("");
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    createPayment,
+    undefined
+  );
 
   return (
-    <form action={createPayment} className="grid grid-cols-2 gap-3">
+    <form action={action} className="grid grid-cols-2 gap-3">
       <input
         name="name"
         placeholder="Nombre (ej. Luz, Netflix)"
@@ -42,7 +41,7 @@ export function PaymentForm() {
         type="text"
         inputMode="numeric"
         value={amount}
-        onChange={(e) => setAmount(formatMoney(e.target.value))}
+        onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
         placeholder="Monto (opcional, varía cada vez)"
         className="col-span-2 rounded border px-3 py-2"
       />
@@ -125,11 +124,16 @@ export function PaymentForm() {
         días antes
       </label>
 
+      {state?.error && (
+        <p className="col-span-2 text-sm text-red-600">{state.error}</p>
+      )}
+
       <button
         type="submit"
-        className="col-span-2 rounded bg-black px-4 py-2 text-white"
+        disabled={pending}
+        className="col-span-2 rounded bg-black px-4 py-2 text-white disabled:opacity-50"
       >
-        Agregar
+        {pending ? "Agregando..." : "Agregar"}
       </button>
     </form>
   );

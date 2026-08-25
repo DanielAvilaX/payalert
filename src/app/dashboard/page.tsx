@@ -1,15 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/actions/auth";
-import { deletePayment, markPaid } from "@/app/dashboard/actions";
 import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { PaymentForm } from "@/app/dashboard/payment-form";
-
-const RECURRENCE_LABEL: Record<string, string> = {
-  none: "Único",
-  weekly: "Semanal",
-  monthly: "Mensual",
-  yearly: "Anual",
-};
+import { PaymentRow } from "@/app/dashboard/payment-row";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -52,43 +45,7 @@ export default async function DashboardPage() {
         {payments?.length ? (
           <ul className="flex flex-col gap-2">
             {payments.map((payment) => (
-              <li
-                key={payment.id}
-                className="flex items-center justify-between rounded border p-3"
-              >
-                <div>
-                  <p className="font-medium">
-                    {payment.name}{" "}
-                    {payment.is_paid && (
-                      <span className="text-xs text-green-700">(pagado)</span>
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
-                    {payment.amount != null &&
-                      ` · $${Number(payment.amount).toLocaleString("es-CO")} ${payment.currency}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {!payment.is_paid && (
-                    <form action={markPaid}>
-                      <input type="hidden" name="id" value={payment.id} />
-                      <button type="submit" className="text-sm underline">
-                        Marcar pagado
-                      </button>
-                    </form>
-                  )}
-                  <form action={deletePayment}>
-                    <input type="hidden" name="id" value={payment.id} />
-                    <button
-                      type="submit"
-                      className="text-sm text-red-600 underline"
-                    >
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
-              </li>
+              <PaymentRow key={payment.id} payment={payment} />
             ))}
           </ul>
         ) : (
