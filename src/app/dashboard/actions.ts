@@ -149,7 +149,7 @@ export async function createPayment(
   });
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
 }
 
 // Edits an existing payment. Unlike creation, editing always works off a
@@ -180,14 +180,14 @@ export async function updatePayment(
     .eq("id", id);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function deletePayment(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("payments").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
 }
 
 // Marks a payment as paid. Recurring payments roll forward to their next
@@ -233,7 +233,7 @@ export async function markPaid(id: string) {
     if (error) throw new Error(error.message);
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function generateTelegramLinkToken(): Promise<string> {
@@ -265,5 +265,5 @@ export async function disconnectTelegram() {
     .delete()
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
 }

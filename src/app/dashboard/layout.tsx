@@ -1,7 +1,8 @@
 import Image from "next/image";
-import { Wallet, Calendar, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/actions/auth";
+import { SidebarNav } from "@/app/dashboard/sidebar-nav";
 
 export default async function DashboardLayout({
   children,
@@ -44,22 +45,7 @@ export default async function DashboardLayout({
             <span className="text-lg font-semibold">PayAlert</span>
           </div>
 
-          <nav className="flex flex-col gap-1">
-            <a
-              href="#nuevo-pago"
-              className="flex items-center gap-2 rounded-lg bg-accent/10 px-3 py-2 text-sm font-medium text-accent transition active:scale-95"
-            >
-              <Wallet size={18} />
-              Nuevo pago
-            </a>
-            <a
-              href="#tus-pagos"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-foreground active:scale-95"
-            >
-              <Calendar size={18} />
-              Tus pagos
-            </a>
-          </nav>
+          <SidebarNav />
         </div>
 
         <div className="flex flex-col gap-3">

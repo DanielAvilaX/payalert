@@ -1,6 +1,7 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TelegramConnect } from "@/app/dashboard/telegram-connect";
-import { PaymentForm } from "@/app/dashboard/payment-form";
 import { PaymentRow } from "@/app/dashboard/payment-row";
 import { StatCards } from "@/app/dashboard/stat-cards";
 import { Greeting } from "@/app/dashboard/greeting";
@@ -34,15 +35,15 @@ export default async function DashboardPage() {
 
   const inSevenDays = new Date();
   inSevenDays.setUTCDate(inSevenDays.getUTCDate() + 7);
-  const upcomingCount = unpaid.filter(
-    (p) => new Date(p.due_date) <= inSevenDays
-  ).length;
+  const upcomingCount = unpaid.filter((p) => new Date(p.due_date) <= inSevenDays).length;
 
   const monthlyTotal = (payments ?? [])
     .filter((p) => p.recurrence === "monthly")
     .reduce((sum, p) => sum + (p.amount ?? 0), 0);
 
   const activeReminders = telegramConnection ? unpaid.length : 0;
+
+  const upcoming = unpaid.slice(0, 5);
 
   const displayName =
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
@@ -67,25 +68,28 @@ export default async function DashboardPage() {
         completedThisMonth={completedThisMonth ?? 0}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section id="nuevo-pago" className="glass-panel animate-pop-in rounded-xl p-5">
-          <h2 className="mb-4 text-lg font-medium">Información del pago</h2>
-          <PaymentForm />
-        </section>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Próximos pagos</h2>
+          <Link
+            href="/dashboard/pagos"
+            className="flex items-center gap-1 text-sm text-muted transition hover:text-foreground"
+          >
+            Ver todos
+            <ArrowRight size={14} />
+          </Link>
+        </div>
 
-        <section id="tus-pagos" className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium">Tus pagos</h2>
-          {payments?.length ? (
-            <ul className="flex flex-col gap-2">
-              {payments.map((payment, i) => (
-                <PaymentRow key={payment.id} payment={payment} index={i} />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted">Todavía no tienes pagos.</p>
-          )}
-        </section>
-      </div>
+        {upcoming.length ? (
+          <ul className="flex flex-col gap-2">
+            {upcoming.map((payment, i) => (
+              <PaymentRow key={payment.id} payment={payment} index={i} />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">Todavía no tienes pagos.</p>
+        )}
+      </section>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Spinner } from "@/app/dashboard/spinner";
+import { ConfirmModal } from "@/app/dashboard/confirm-modal";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
@@ -16,7 +17,7 @@ const RECURRENCE_LABEL: Record<string, string> = {
   yearly: "Anual",
 };
 
-type Payment = {
+export type Payment = {
   id: string;
   name: string;
   amount: number | null;
@@ -63,11 +64,10 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     payment.amount != null ? `$${Number(payment.amount).toLocaleString("es-CO")}` : ""
   );
   const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   function handleDelete() {
-    if (!confirm(`¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`)) {
-      return;
-    }
+    setConfirmingDelete(false);
     setError(null);
     startTransition(async () => {
       try {
@@ -209,13 +209,21 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         <button
           type="button"
           disabled={pending}
-          onClick={handleDelete}
+          onClick={() => setConfirmingDelete(true)}
           aria-label={`Eliminar ${payment.name}`}
           className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition hover:bg-red-500/20 active:scale-95 disabled:opacity-50"
         >
           <Trash2 size={14} />
         </button>
       </div>
+
+      <ConfirmModal
+        open={confirmingDelete}
+        title="Eliminar pago"
+        description={`¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </li>
   );
 }

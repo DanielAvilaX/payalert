@@ -110,6 +110,34 @@ body {
   outline: none;
 }
 
+/* Makes native browser chrome (date picker popup, number spinners) render
+   in dark mode instead of clashing light-on-dark with the rest of the UI. */
+.glass-input {
+  color-scheme: dark;
+}
+
+.scrollbar-glass {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.scrollbar-glass::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-glass::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-glass::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+
+.scrollbar-glass::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 @keyframes pop-in {
   0% {
     opacity: 0;
