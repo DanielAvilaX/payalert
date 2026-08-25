@@ -18,6 +18,14 @@
   --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-heading);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
 }
 
 body {
@@ -114,6 +122,17 @@ body {
    in dark mode instead of clashing light-on-dark with the rest of the UI. */
 .glass-input {
   color-scheme: dark;
+}
+
+/* iOS Safari auto-zooms into any input/select/textarea rendered below 16px,
+   which throws off the whole layout until the user zooms back out. Forcing
+   16px on mobile (overriding text-sm etc.) stops that entirely. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 .scrollbar-glass {

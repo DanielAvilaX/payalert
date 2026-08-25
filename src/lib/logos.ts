@@ -1,4 +1,4 @@
-import { Flame, Car, Home, Gamepad2, type LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 
 export type LogoId =
   | "netflix"
@@ -30,9 +30,8 @@ export type LogoId =
 
 type LogoConfig = {
   label: string;
-  // Most logos are provided as images in public/logos. A few source images
-  // came watermarked (unlicensed stock) and are swapped for a plain icon
-  // instead until a clean asset is available.
+  // Logos are images in public/logos; `icon` is a plain-icon fallback for
+  // any id that doesn't have artwork yet.
   src?: string;
   icon?: LucideIcon;
   keywords: string[];
@@ -48,7 +47,7 @@ export const LOGOS: Record<LogoId, LogoConfig> = {
   xbox: { label: "Xbox", src: "/logos/Xbox.png", keywords: ["xbox", "game pass"] },
   playstation: {
     label: "PlayStation",
-    icon: Gamepad2,
+    src: "/logos/Playstation.png",
     keywords: ["playstation", "ps plus", "ps4", "ps5", "sony"],
   },
   claro: { label: "Claro", src: "/logos/Claro.png", keywords: ["claro"] },
@@ -73,7 +72,7 @@ export const LOGOS: Record<LogoId, LogoConfig> = {
     keywords: ["luz", "energia", "codensa", "enel", "epm", "electricidad"],
   },
   agua: { label: "Agua", src: "/logos/Agua.png", keywords: ["agua", "acueducto"] },
-  gas: { label: "Gas", icon: Flame, keywords: ["gas", "vanti"] },
+  gas: { label: "Gas", src: "/logos/Gas.png", keywords: ["gas", "vanti"] },
   internet: {
     label: "Internet",
     src: "/logos/internet.png",
@@ -84,7 +83,7 @@ export const LOGOS: Record<LogoId, LogoConfig> = {
     src: "/logos/House.png",
     keywords: ["arriendo", "renta", "vivienda", "apartamento"],
   },
-  car: { label: "Vehículo", icon: Car, keywords: ["carro", "vehiculo", "moto", "soat"] },
+  car: { label: "Vehículo", src: "/logos/Car.png", keywords: ["carro", "vehiculo", "moto", "soat"] },
   health: {
     label: "Salud",
     src: "/logos/Health.png",
@@ -97,7 +96,7 @@ export const LOGOS: Record<LogoId, LogoConfig> = {
   },
   building: {
     label: "Administración",
-    icon: Home,
+    src: "/logos/Building.png",
     keywords: ["administracion", "edificio", "conjunto", "cuota admin"],
   },
   money: { label: "Otro", src: "/logos/Money.png", keywords: [] },

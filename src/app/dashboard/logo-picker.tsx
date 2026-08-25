@@ -61,13 +61,13 @@ export function LogoPicker({
         onClick={() => setOpen((o) => !o)}
         className="glass-input flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition active:scale-95"
       >
-        <LogoThumb id={value} size={22} />
+        <LogoThumb id={value} size={28} />
         <span className="truncate">{current.label}</span>
         <ChevronDown size={14} className="ml-auto shrink-0 text-muted" />
       </button>
 
       {open && (
-        <div className="glass-panel absolute z-20 mt-2 grid max-h-64 w-full min-w-[16rem] grid-cols-4 gap-2 overflow-y-auto rounded-lg p-3 shadow-xl animate-pop-in">
+        <div className="glass-panel absolute z-20 mt-2 grid max-h-72 w-full min-w-[18rem] grid-cols-4 gap-2 overflow-y-auto rounded-lg p-3 shadow-xl animate-pop-in">
           {LOGO_OPTIONS.map(([id, cfg]) => (
             <button
               key={id}
@@ -76,11 +76,11 @@ export function LogoPicker({
                 onChange(id);
                 setOpen(false);
               }}
-              className={`flex flex-col items-center gap-1 rounded-lg p-2 hover:bg-white/10 ${
+              className={`flex flex-col items-center gap-1 rounded-lg p-2 transition hover:bg-white/10 active:scale-95 ${
                 id === value ? "ring-2 ring-accent" : ""
               }`}
             >
-              <LogoThumb id={id} size={32} />
+              <LogoThumb id={id} size={40} />
               <span className="text-center text-[10px] leading-tight text-muted">
                 {cfg.label}
               </span>

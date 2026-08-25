@@ -21,13 +21,13 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition active:scale-95 ${
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition active:scale-95 ${
               active
                 ? "bg-accent/10 font-medium text-accent"
                 : "text-muted hover:bg-white/5 hover:text-foreground"
             }`}
           >
-            <Icon size={18} />
+            <Icon size={22} />
             {label}
           </Link>
         );

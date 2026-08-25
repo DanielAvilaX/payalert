@@ -25,7 +25,7 @@ export function MobileNav() {
               active ? "text-accent" : "text-muted"
             }`}
           >
-            <Icon size={20} />
+            <Icon size={24} />
             {label}
           </Link>
         );

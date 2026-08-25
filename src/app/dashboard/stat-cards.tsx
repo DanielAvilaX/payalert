@@ -6,7 +6,6 @@ type Stat = {
   hint: string;
   icon: LucideIcon;
   bg: string;
-  fg: string;
 };
 
 export function StatCards({
@@ -26,49 +25,49 @@ export function StatCards({
       value: String(upcomingCount),
       hint: "Esta semana",
       icon: Wallet,
-      bg: "bg-emerald-500/15",
-      fg: "text-emerald-400",
+      bg: "bg-emerald-500",
     },
     {
       label: "Total mensual",
       value: `$${monthlyTotal.toLocaleString("es-CO")}`,
       hint: "En pagos mensuales",
       icon: Calendar,
-      bg: "bg-amber-500/15",
-      fg: "text-amber-400",
+      bg: "bg-amber-500",
     },
     {
       label: "Recordatorios activos",
       value: String(activeReminders),
       hint: "En Telegram",
       icon: Bell,
-      bg: "bg-blue-500/15",
-      fg: "text-blue-400",
+      bg: "bg-blue-500",
     },
     {
       label: "Pagos completados",
       value: String(completedThisMonth),
       hint: "Este mes",
       icon: BarChart3,
-      bg: "bg-violet-500/15",
-      fg: "text-violet-400",
+      bg: "bg-violet-500",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {stats.map(({ label, value, hint, icon: Icon, bg, fg }, i) => (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map(({ label, value, hint, icon: Icon, bg }, i) => (
         <div
           key={label}
-          className="glass-panel animate-pop-in rounded-xl p-4"
+          className="glass-panel animate-pop-in flex items-center gap-4 rounded-2xl p-5"
           style={{ animationDelay: `${i * 70}ms` }}
         >
-          <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
-            <Icon size={18} className={fg} />
+          <div
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-white shadow-lg ${bg}`}
+          >
+            <Icon size={26} />
           </div>
-          <p className="text-sm text-muted">{label}</p>
-          <p className="text-xl font-semibold">{value}</p>
-          <p className="text-xs text-muted">{hint}</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm text-muted">{label}</p>
+            <p className="font-heading text-2xl font-semibold">{value}</p>
+            <p className="truncate text-xs text-muted">{hint}</p>
+          </div>
         </div>
       ))}
     </div>

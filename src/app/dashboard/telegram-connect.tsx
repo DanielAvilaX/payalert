@@ -15,23 +15,23 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="glass-panel flex items-center justify-between rounded-xl p-4 animate-pop-in">
-        <div className="flex items-center gap-3">
+      <div className="glass-panel flex items-center justify-between rounded-2xl p-5 animate-pop-in">
+        <div className="flex items-center gap-4">
           <Image
             src="/telegram-connect.png"
             alt=""
-            width={40}
-            height={40}
+            width={52}
+            height={52}
             className="rounded-full"
           />
-          <p className="text-sm">Telegram conectado — recibirás tus recordatorios ahí.</p>
+          <p>Telegram conectado — recibirás tus recordatorios ahí.</p>
         </div>
         <form action={disconnectTelegram}>
           <button
             type="submit"
             className="flex items-center gap-1.5 text-sm text-red-400 hover:underline"
           >
-            <Unlink size={14} />
+            <Unlink size={16} />
             Desconectar
           </button>
         </form>
@@ -40,17 +40,19 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="glass-panel flex flex-col gap-4 rounded-xl p-5 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-4">
+    <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-5">
         <Image
           src="/telegram-connect.png"
           alt=""
-          width={52}
-          height={52}
+          width={64}
+          height={64}
           className="shrink-0 rounded-full"
         />
         <div>
-          <p className="font-medium">Conecta Telegram para recibir recordatorios.</p>
+          <p className="font-heading text-lg font-medium">
+            Conecta Telegram para recibir recordatorios.
+          </p>
           <p className="text-sm text-muted">
             Genera tu enlace de conexión y ábrelo en Telegram para empezar a recibir alertas.
           </p>

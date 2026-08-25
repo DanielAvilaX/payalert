@@ -38,9 +38,9 @@ function LogoBadge({ logo }: { logo: string | null }) {
     return (
       <div
         title={cfg.label}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10"
       >
-        <Icon size={18} />
+        <Icon size={22} />
       </div>
     );
   }
@@ -48,10 +48,10 @@ function LogoBadge({ logo }: { logo: string | null }) {
     <Image
       src={cfg.src!}
       alt=""
-      width={40}
-      height={40}
+      width={48}
+      height={48}
       title={cfg.label}
-      className="h-10 w-10 shrink-0 rounded-full object-cover"
+      className="h-12 w-12 shrink-0 rounded-full object-cover"
     />
   );
 }
@@ -168,7 +168,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
 
   return (
     <li
-      className="glass-panel animate-pop-in flex items-center justify-between gap-3 rounded-xl p-3"
+      className="glass-panel animate-pop-in flex items-center justify-between gap-3 rounded-2xl p-4"
       style={style}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -186,15 +186,15 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-sm">
+      <div className="flex shrink-0 items-center gap-1.5 text-sm">
         <button
           type="button"
           onClick={() => setEditing(true)}
           aria-label="Editar"
           title="Editar"
-          className="rounded-md p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+          className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
         >
-          <Pencil size={14} />
+          <Pencil size={18} />
         </button>
         {!payment.is_paid && (
           <button
@@ -203,9 +203,9 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
             onClick={handleMarkPaid}
             aria-label="Marcar pagado"
             title="Marcar pagado"
-            className="rounded-md p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
+            className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
           >
-            {pending ? <Spinner size={14} /> : <CheckCircle2 size={14} />}
+            {pending ? <Spinner size={18} /> : <CheckCircle2 size={18} />}
           </button>
         )}
         <button
@@ -213,9 +213,9 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           disabled={pending}
           onClick={() => setConfirmingDelete(true)}
           aria-label={`Eliminar ${payment.name}`}
-          className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition hover:bg-red-500/20 active:scale-95 disabled:opacity-50"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-red-400 transition hover:bg-red-500/20 active:scale-95 disabled:opacity-50"
         >
-          <Trash2 size={14} />
+          <Trash2 size={18} />
         </button>
       </div>
 

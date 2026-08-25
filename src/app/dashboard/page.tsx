@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { PaymentRow } from "@/app/dashboard/payment-row";
@@ -70,13 +70,18 @@ export default async function DashboardPage() {
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Próximos pagos</h2>
+          <h2 className="flex items-center gap-2 text-lg font-medium">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+              <Calendar size={18} />
+            </span>
+            Próximos pagos
+          </h2>
           <Link
             href="/dashboard/pagos"
             className="flex items-center gap-1 text-sm text-muted transition hover:text-foreground"
           >
             Ver todos
-            <ArrowRight size={14} />
+            <ArrowRight size={16} />
           </Link>
         </div>
 

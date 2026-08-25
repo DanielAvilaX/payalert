@@ -18,11 +18,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
       <div className="flex items-center gap-2">
-        <Image src="/logo.png" alt="" width={36} height={36} className="rounded-lg" />
+        <Image src="/logo.png" alt="" width={44} height={44} className="rounded-xl" />
         <span className="text-lg font-semibold">PayAlert</span>
       </div>
 
-      <div className="glass-panel animate-pop-in w-full max-w-sm rounded-xl p-6">
+      <div className="glass-panel animate-pop-in w-full max-w-sm rounded-2xl p-7">
         <h1 className="mb-6 text-xl font-semibold">Iniciar sesión</h1>
 
         <form action={action} className="flex flex-col gap-4">
@@ -53,7 +53,7 @@ export default function LoginPage() {
             disabled={pending}
             className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
           >
-            {pending ? <Spinner size={16} /> : <LogIn size={16} />}
+            {pending ? <Spinner size={18} /> : <LogIn size={18} />}
             {pending ? "Entrando..." : "Entrar"}
           </button>
         </form>
