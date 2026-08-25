@@ -21,7 +21,7 @@ const MONTHS = [
 function formatMoney(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
-  return Number(digits).toLocaleString("es-CO");
+  return `$${Number(digits).toLocaleString("es-CO")}`;
 }
 
 export function PaymentForm() {
