@@ -50,6 +50,44 @@ function nearestMonthlyDueDate(dayOfMonth: number): string {
   return addMonthsClamped(year, monthIndex, dayOfMonth, monthsAhead);
 }
 
+// Given a day + month (no year), picks the nearest occurrence: this year if
+// that date hasn't passed yet, else next year.
+function nearestYearlyDueDate(day: number, month: number): string {
+  const today = new Date();
+  const year = today.getUTCFullYear();
+  const monthIndex = month - 1;
+  const todayUtc = Date.UTC(year, today.getUTCMonth(), today.getUTCDate());
+
+  const thisYearCandidate = addMonthsClamped(year, monthIndex, day, 0);
+  const [cy, cm, cd] = thisYearCandidate.split("-").map(Number);
+  const candidateUtc = Date.UTC(cy, cm - 1, cd);
+
+  return candidateUtc >= todayUtc
+    ? thisYearCandidate
+    : addMonthsClamped(year + 1, monthIndex, day, 0);
+}
+
+// Given a day of the week (0 = Sunday .. 6 = Saturday, matching Date#getUTCDay),
+// picks the nearest occurrence, counting today if it matches.
+function nearestWeekdayDueDate(targetDow: number): string {
+  const today = new Date();
+  const year = today.getUTCFullYear();
+  const monthIndex = today.getUTCMonth();
+  const day = today.getUTCDate();
+  const currentDow = new Date(Date.UTC(year, monthIndex, day)).getUTCDay();
+
+  let diff = targetDow - currentDow;
+  if (diff < 0) diff += 7;
+
+  const date = new Date(Date.UTC(year, monthIndex, day + diff));
+  return date.toISOString().slice(0, 10);
+}
+
+function parseMoney(raw: string): number | null {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? Number(digits) : null;
+}
+
 export async function createPayment(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -62,17 +100,38 @@ export async function createPayment(formData: FormData) {
   const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
-  // Monthly bills only need a day-of-month; every other recurrence needs a
-  // full date (a one-time payment or the first occurrence of a weekly/yearly one).
+  // The date fields collected depend on how often the payment repeats:
+  // monthly -> just a day-of-month, yearly -> day + month, weekly -> day of
+  // the week, único -> a full date. Whichever isn't relevant isn't asked for.
   let dueDate: string;
-  if (recurrence === "monthly") {
-    const dayOfMonth = Number(formData.get("day_of_month") ?? "");
-    if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
-      throw new Error("Día del mes inválido");
+  switch (recurrence) {
+    case "monthly": {
+      const dayOfMonth = Number(formData.get("day_of_month") ?? "");
+      if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
+        throw new Error("Día del mes inválido");
+      }
+      dueDate = nearestMonthlyDueDate(dayOfMonth);
+      break;
     }
-    dueDate = nearestMonthlyDueDate(dayOfMonth);
-  } else {
-    dueDate = String(formData.get("due_date") ?? "");
+    case "yearly": {
+      const day = Number(formData.get("day_of_month") ?? "");
+      const month = Number(formData.get("month") ?? "");
+      if (!day || day < 1 || day > 31 || !month || month < 1 || month > 12) {
+        throw new Error("Día o mes inválido");
+      }
+      dueDate = nearestYearlyDueDate(day, month);
+      break;
+    }
+    case "weekly": {
+      const weekday = formData.get("weekday");
+      if (weekday === null || weekday === "") {
+        throw new Error("Falta el día de la semana");
+      }
+      dueDate = nearestWeekdayDueDate(Number(weekday));
+      break;
+    }
+    default:
+      dueDate = String(formData.get("due_date") ?? "");
   }
 
   if (!name || !dueDate) throw new Error("Faltan campos requeridos");
@@ -80,7 +139,7 @@ export async function createPayment(formData: FormData) {
   const { error } = await supabase.from("payments").insert({
     user_id: user.id,
     name,
-    amount: amountRaw ? Number(amountRaw) : null,
+    amount: parseMoney(amountRaw),
     currency: "COP",
     due_date: dueDate,
     recurrence,

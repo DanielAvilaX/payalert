@@ -66,7 +66,7 @@ export default async function DashboardPage() {
                   <p className="text-sm text-gray-600">
                     {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
                     {payment.amount != null &&
-                      ` · ${payment.amount} ${payment.currency}`}
+                      ` · $${Number(payment.amount).toLocaleString("es-CO")} ${payment.currency}`}
                   </p>
                 </div>
                 <div className="flex gap-2">
