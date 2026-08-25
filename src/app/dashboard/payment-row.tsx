@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
+import { Trash2 } from "lucide-react";
 import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
-import { categoryConfig, CATEGORY_OPTIONS } from "@/lib/categories";
-import { Trash2 } from "lucide-react";
+import { logoConfig, type LogoId } from "@/lib/logos";
+import { LogoPicker } from "@/app/dashboard/logo-picker";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
@@ -18,15 +20,39 @@ type Payment = {
   name: string;
   amount: number | null;
   currency: string;
-  category: string | null;
+  logo: string | null;
   due_date: string;
   recurrence: string;
   remind_days_before: number;
   is_paid: boolean;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none";
+const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
+
+function LogoBadge({ logo }: { logo: string | null }) {
+  const cfg = logoConfig(logo);
+  if (cfg.icon) {
+    const Icon = cfg.icon;
+    return (
+      <div
+        title={cfg.label}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10"
+      >
+        <Icon size={18} />
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={cfg.src!}
+      alt=""
+      width={40}
+      height={40}
+      title={cfg.label}
+      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+    />
+  );
+}
 
 export function PaymentRow({ payment }: { payment: Payment }) {
   const [editing, setEditing] = useState(false);
@@ -35,8 +61,7 @@ export function PaymentRow({ payment }: { payment: Payment }) {
   const [amount, setAmount] = useState(
     payment.amount != null ? `$${Number(payment.amount).toLocaleString("es-CO")}` : ""
   );
-
-  const { label: categoryLabel, icon: Icon, bg, fg } = categoryConfig(payment.category);
+  const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
 
   function handleDelete() {
     if (!confirm(`¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`)) {
@@ -77,22 +102,11 @@ export function PaymentRow({ payment }: { payment: Payment }) {
 
   if (editing) {
     return (
-      <li className="rounded-xl border border-border bg-surface p-4">
+      <li className="glass-panel rounded-xl p-4">
         <form action={handleSave} className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
-            <input
-              name="name"
-              defaultValue={payment.name}
-              required
-              className={inputClass}
-            />
-            <select name="category" defaultValue={payment.category ?? "otro"} className={inputClass}>
-              {CATEGORY_OPTIONS.map(([id, cfg]) => (
-                <option key={id} value={id}>
-                  {cfg.label}
-                </option>
-              ))}
-            </select>
+            <input name="name" defaultValue={payment.name} required className={inputClass} />
+            <LogoPicker name="logo" value={logo} onChange={setLogo} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -119,7 +133,7 @@ export function PaymentRow({ payment }: { payment: Payment }) {
               type="number"
               min={0}
               defaultValue={payment.remind_days_before}
-              className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-foreground focus:border-accent focus:outline-none"
+              className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
             />
             días antes
           </label>
@@ -130,7 +144,7 @@ export function PaymentRow({ payment }: { payment: Payment }) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-accent-dark disabled:opacity-50"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
             >
               {pending ? "Guardando..." : "Guardar"}
             </button>
@@ -148,20 +162,13 @@ export function PaymentRow({ payment }: { payment: Payment }) {
   }
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
+    <li className="glass-panel flex items-center justify-between gap-3 rounded-xl p-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div
-          title={categoryLabel}
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bg}`}
-        >
-          <Icon size={18} className={fg} />
-        </div>
+        <LogoBadge logo={payment.logo} />
         <div className="min-w-0">
           <p className="truncate font-medium">
             {payment.name}{" "}
-            {payment.is_paid && (
-              <span className="text-xs text-accent">(pagado)</span>
-            )}
+            {payment.is_paid && <span className="text-xs text-accent">(pagado)</span>}
           </p>
           <p className="truncate text-sm text-muted">
             {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
@@ -190,7 +197,7 @@ export function PaymentRow({ payment }: { payment: Payment }) {
           disabled={pending}
           onClick={handleDelete}
           aria-label={`Eliminar ${payment.name}`}
-          className="rounded-md border border-red-900/40 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+          className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 disabled:opacity-50"
         >
           <Trash2 size={14} />
         </button>

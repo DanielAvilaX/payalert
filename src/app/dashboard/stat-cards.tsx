@@ -58,7 +58,7 @@ export function StatCards({
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {stats.map(({ label, value, hint, icon: Icon, bg, fg }) => (
-        <div key={label} className="rounded-xl border border-border bg-surface p-4">
+        <div key={label} className="glass-panel rounded-xl p-4">
           <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
             <Icon size={18} className={fg} />
           </div>

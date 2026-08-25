@@ -3,7 +3,8 @@
 import { useActionState, useState } from "react";
 import { createPayment, type ActionState, type Recurrence } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
-import { CATEGORY_OPTIONS } from "@/lib/categories";
+import { detectLogo, type LogoId } from "@/lib/logos";
+import { LogoPicker } from "@/app/dashboard/logo-picker";
 
 const WEEKDAYS = [
   { value: 1, label: "Lunes" },
@@ -20,17 +21,31 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none";
+const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";
 
 export function PaymentForm() {
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [amount, setAmount] = useState("");
+  const [name, setName] = useState("");
+  const [logo, setLogo] = useState<LogoId>("money");
+  const [logoManual, setLogoManual] = useState(false);
   const [state, action, pending] = useActionState<ActionState, FormData>(
     createPayment,
     undefined
   );
+
+  function handleNameChange(value: string) {
+    setName(value);
+    if (!logoManual) {
+      setLogo(detectLogo(value));
+    }
+  }
+
+  function handleLogoChange(id: LogoId) {
+    setLogo(id);
+    setLogoManual(true);
+  }
 
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -41,6 +56,8 @@ export function PaymentForm() {
         <input
           id="name"
           name="name"
+          value={name}
+          onChange={(e) => handleNameChange(e.target.value)}
           placeholder="Ej. Luz, Netflix, Spotify"
           required
           className={inputClass}
@@ -65,16 +82,8 @@ export function PaymentForm() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="category" className={labelClass}>
-            Categoría
-          </label>
-          <select id="category" name="category" defaultValue="otro" className={inputClass}>
-            {CATEGORY_OPTIONS.map(([id, cfg]) => (
-              <option key={id} value={id}>
-                {cfg.label}
-              </option>
-            ))}
-          </select>
+          <label className={labelClass}>Logo</label>
+          <LogoPicker name="logo" value={logo} onChange={handleLogoChange} />
         </div>
       </div>
 
@@ -158,7 +167,7 @@ export function PaymentForm() {
           type="number"
           min={0}
           defaultValue={3}
-          className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-foreground focus:border-accent focus:outline-none"
+          className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
         />
         días antes
       </label>
@@ -168,7 +177,7 @@ export function PaymentForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-accent-dark disabled:opacity-50"
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
       >
         {pending ? "Agregando..." : "Agregar pago"}
       </button>

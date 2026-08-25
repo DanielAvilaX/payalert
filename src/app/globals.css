@@ -1,30 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0e0c;
-  --surface: #121713;
-  --surface-alt: #10140f;
-  --border: #212a22;
-  --foreground: #f2f5f2;
-  --muted: #8c988c;
-  --accent: #22c55e;
-  --accent-dark: #16a34a;
+  --background: #060815;
+  --foreground: #f1f4fd;
+  --muted: #8a93b8;
+  --accent: #5b7cfa;
+  --accent-dark: #3f5fe0;
+  --border: rgba(255, 255, 255, 0.12);
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-surface-alt: var(--surface-alt);
-  --color-border: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
+  --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
   color: var(--foreground);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(at 15% 0%, rgba(91, 124, 250, 0.28) 0px, transparent 55%),
+    radial-gradient(at 85% 15%, rgba(56, 189, 248, 0.16) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(129, 87, 245, 0.18) 0px, transparent 55%),
+    linear-gradient(180deg, #05060f 0%, #070a1a 45%, #05070f 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--border);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.glass-input:focus {
+  border-color: var(--accent);
+  outline: none;
 }

@@ -21,7 +21,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <header className="flex items-center justify-between border-b border-border bg-surface-alt px-4 py-3 md:hidden">
+      <header className="glass-panel flex items-center justify-between px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
           <Image src="/logo.png" alt="" width={28} height={28} className="rounded-lg" />
           <span className="font-semibold">PayAlert</span>
@@ -33,7 +33,7 @@ export default async function DashboardLayout({
         </form>
       </header>
 
-      <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-border bg-surface-alt p-4 md:flex">
+      <aside className="glass-panel hidden w-64 shrink-0 flex-col justify-between p-4 md:flex">
         <div className="flex flex-col gap-8">
           <div className="flex items-center gap-2 px-2">
             <Image src="/logo.png" alt="" width={32} height={32} className="rounded-lg" />

@@ -4,8 +4,7 @@ import { useActionState } from "react";
 import Image from "next/image";
 import { updatePassword, type AuthState } from "@/app/actions/auth";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none";
+const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
 
 export default function ResetPasswordPage() {
   const [state, action, pending] = useActionState<AuthState, FormData>(
@@ -20,7 +19,7 @@ export default function ResetPasswordPage() {
         <span className="text-lg font-semibold">PayAlert</span>
       </div>
 
-      <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6">
+      <div className="glass-panel w-full max-w-sm rounded-xl p-6">
         <h1 className="mb-6 text-xl font-semibold">Elige una nueva contraseña</h1>
 
         <form action={action} className="flex flex-col gap-4">
@@ -43,7 +42,7 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-accent-dark disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
           >
             {pending ? "Guardando..." : "Guardar contraseña"}
           </button>

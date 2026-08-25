@@ -13,7 +13,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
+      <div className="glass-panel flex items-center justify-between rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
             <Send size={18} />
@@ -30,7 +30,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass-panel flex flex-col gap-4 rounded-xl p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
           <Send size={22} />
@@ -48,7 +48,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
           href={link}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-black hover:bg-accent-dark"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-white hover:bg-accent-dark"
         >
           Abrir en Telegram
         </a>
@@ -63,7 +63,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
               setLink(`https://t.me/${username}?start=${token}`);
             })
           }
-          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-accent-dark disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
         >
           {pending ? "Generando enlace..." : "Generar enlace de conexión"}
         </button>

@@ -97,7 +97,7 @@ export async function createPayment(
 
   const name = String(formData.get("name") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "");
-  const category = String(formData.get("category") ?? "otro");
+  const logo = String(formData.get("logo") ?? "money");
   const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
@@ -142,7 +142,7 @@ export async function createPayment(
     name,
     amount: parseMoneyInput(amountRaw),
     currency: "COP",
-    category,
+    logo,
     due_date: dueDate,
     recurrence,
     remind_days_before: remindDaysBefore,
@@ -162,7 +162,7 @@ export async function updatePayment(
 
   const name = String(formData.get("name") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "");
-  const category = String(formData.get("category") ?? "otro");
+  const logo = String(formData.get("logo") ?? "money");
   const dueDate = String(formData.get("due_date") ?? "");
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
@@ -173,7 +173,7 @@ export async function updatePayment(
     .update({
       name,
       amount: parseMoneyInput(amountRaw),
-      category,
+      logo,
       due_date: dueDate,
       remind_days_before: remindDaysBefore,
     })

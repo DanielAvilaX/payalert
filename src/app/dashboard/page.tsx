@@ -62,7 +62,7 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section id="nuevo-pago" className="rounded-xl border border-border bg-surface p-5">
+        <section id="nuevo-pago" className="glass-panel rounded-xl p-5">
           <h2 className="mb-4 text-lg font-medium">Información del pago</h2>
           <PaymentForm />
         </section>
