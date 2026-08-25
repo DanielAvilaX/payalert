@@ -97,6 +97,7 @@ export async function createPayment(
 
   const name = String(formData.get("name") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "");
+  const category = String(formData.get("category") ?? "otro");
   const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
@@ -141,6 +142,7 @@ export async function createPayment(
     name,
     amount: parseMoneyInput(amountRaw),
     currency: "COP",
+    category,
     due_date: dueDate,
     recurrence,
     remind_days_before: remindDaysBefore,
@@ -160,6 +162,7 @@ export async function updatePayment(
 
   const name = String(formData.get("name") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "");
+  const category = String(formData.get("category") ?? "otro");
   const dueDate = String(formData.get("due_date") ?? "");
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
@@ -170,6 +173,7 @@ export async function updatePayment(
     .update({
       name,
       amount: parseMoneyInput(amountRaw),
+      category,
       due_date: dueDate,
       remind_days_before: remindDaysBefore,
     })
@@ -190,14 +194,27 @@ export async function deletePayment(id: string) {
 // due date instead of disappearing, so a fresh reminder cycle can fire.
 export async function markPaid(id: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
 
   const { data: payment, error: fetchError } = await supabase
     .from("payments")
-    .select("due_date, recurrence")
+    .select("name, amount, due_date, recurrence")
     .eq("id", id)
     .single();
 
   if (fetchError) throw new Error(fetchError.message);
+
+  const { error: eventError } = await supabase.from("payment_events").insert({
+    payment_id: id,
+    user_id: user.id,
+    name: payment.name,
+    amount: payment.amount,
+    due_date: payment.due_date,
+  });
+  if (eventError) throw new Error(eventError.message);
 
   if (payment.recurrence === "none") {
     const { error } = await supabase

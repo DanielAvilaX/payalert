@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Send } from "lucide-react";
 import {
   disconnectTelegram,
   generateTelegramLinkToken,
@@ -12,10 +13,15 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="flex items-center gap-3 rounded border p-3">
-        <span className="text-sm">✅ Telegram conectado</span>
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
+            <Send size={18} />
+          </div>
+          <p className="text-sm">Telegram conectado — recibirás tus recordatorios ahí.</p>
+        </div>
         <form action={disconnectTelegram}>
-          <button type="submit" className="text-sm text-red-600 underline">
+          <button type="submit" className="text-sm text-red-400 hover:underline">
             Desconectar
           </button>
         </form>
@@ -24,15 +30,25 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded border p-3">
-      <p className="text-sm">Conecta Telegram para recibir recordatorios.</p>
+    <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+          <Send size={22} />
+        </div>
+        <div>
+          <p className="font-medium">Conecta Telegram para recibir recordatorios.</p>
+          <p className="text-sm text-muted">
+            Genera tu enlace de conexión y ábrelo en Telegram para empezar a recibir alertas.
+          </p>
+        </div>
+      </div>
 
       {link ? (
         <a
           href={link}
           target="_blank"
           rel="noreferrer"
-          className="w-fit rounded bg-black px-3 py-1.5 text-sm text-white"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-black hover:bg-accent-dark"
         >
           Abrir en Telegram
         </a>
@@ -47,7 +63,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
               setLink(`https://t.me/${username}?start=${token}`);
             })
           }
-          className="w-fit rounded bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-accent-dark disabled:opacity-50"
         >
           {pending ? "Generando enlace..." : "Generar enlace de conexión"}
         </button>
