@@ -260,6 +260,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
       <RemindersModal
         paymentId={payment.id}
         paymentName={payment.name}
+        paymentLogo={payment.logo}
         open={remindersOpen}
         onClose={() => setRemindersOpen(false)}
       />

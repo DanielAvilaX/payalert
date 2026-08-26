@@ -11,7 +11,7 @@ export default async function ConfiguracionPage() {
 
   const { data: rules } = await supabase
     .from("reminder_rules")
-    .select("*, payments(name)")
+    .select("*, payments(name, logo)")
     .order("created_at", { ascending: false });
 
   const defaultDays =

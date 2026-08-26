@@ -1,21 +1,40 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
-import { deleteReminderRule, type ReminderRule } from "@/app/dashboard/reminder-actions";
-import { describeReminderRule } from "@/lib/reminder-format";
+import { useState } from "react";
+import Image from "next/image";
+import { type ReminderRule } from "@/app/dashboard/reminder-actions";
+import { ReminderRuleItem } from "@/app/dashboard/reminder-rule-item";
+import { logoConfig } from "@/lib/logos";
 
-export type RuleWithPayment = ReminderRule & { payments: { name: string } | null };
+export type RuleWithPayment = ReminderRule & {
+  payments: { name: string; logo: string | null } | null;
+};
+
+function PaymentLogo({ logo }: { logo: string | null | undefined }) {
+  const cfg = logoConfig(logo);
+  if (cfg.icon) {
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+        <cfg.icon size={16} />
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={cfg.src!}
+      alt=""
+      width={36}
+      height={36}
+      className="h-9 w-9 shrink-0 rounded-full object-cover"
+    />
+  );
+}
 
 export function RulesOverview({ rules }: { rules: RuleWithPayment[] }) {
   const [items, setItems] = useState(rules);
-  const [pending, startTransition] = useTransition();
 
-  function handleDelete(id: string) {
-    startTransition(async () => {
-      await deleteReminderRule(id);
-      setItems((prev) => prev.filter((r) => r.id !== id));
-    });
+  function handleDeleted(id: string) {
+    setItems((prev) => prev.filter((r) => r.id !== id));
   }
 
   if (items.length === 0) {
@@ -27,34 +46,25 @@ export function RulesOverview({ rules }: { rules: RuleWithPayment[] }) {
     );
   }
 
-  const grouped = new Map<string, RuleWithPayment[]>();
+  const grouped = new Map<string, { logo: string | null; rules: RuleWithPayment[] }>();
   for (const rule of items) {
-    const key = rule.payments?.name ?? "Pago eliminado";
-    grouped.set(key, [...(grouped.get(key) ?? []), rule]);
+    const name = rule.payments?.name ?? "Pago eliminado";
+    const entry = grouped.get(name) ?? { logo: rule.payments?.logo ?? null, rules: [] };
+    entry.rules.push(rule);
+    grouped.set(name, entry);
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {Array.from(grouped.entries()).map(([name, rulesForPayment]) => (
+    <div className="flex flex-col gap-5">
+      {Array.from(grouped.entries()).map(([name, { logo, rules: rulesForPayment }]) => (
         <div key={name}>
-          <p className="mb-2 truncate text-sm font-medium">{name}</p>
+          <div className="mb-2 flex items-center gap-2.5">
+            <PaymentLogo logo={logo} />
+            <p className="truncate text-sm font-medium">{name}</p>
+          </div>
           <ul className="flex flex-col gap-2">
             {rulesForPayment.map((rule) => (
-              <li
-                key={rule.id}
-                className="glass-input flex items-center justify-between rounded-lg px-3 py-2 text-sm"
-              >
-                <span>{describeReminderRule(rule)}</span>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => handleDelete(rule.id)}
-                  aria-label="Eliminar regla"
-                  className="text-red-400 transition hover:text-red-300 disabled:opacity-50"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </li>
+              <ReminderRuleItem key={rule.id} rule={rule} onDeleted={handleDeleted} />
             ))}
           </ul>
         </div>

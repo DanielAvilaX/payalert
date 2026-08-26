@@ -26,6 +26,8 @@ export type LogoId =
   | "health"
   | "tarjeta"
   | "building"
+  | "savings"
+  | "vacations"
   | "money";
 
 type LogoConfig = {
@@ -98,6 +100,16 @@ export const LOGOS: Record<LogoId, LogoConfig> = {
     label: "Administración",
     src: "/logos/Building.png",
     keywords: ["administracion", "edificio", "conjunto", "cuota admin"],
+  },
+  savings: {
+    label: "Ahorros",
+    src: "/logos/Alcancia.png",
+    keywords: ["ahorro", "ahorros", "alcancia"],
+  },
+  vacations: {
+    label: "Vacaciones",
+    src: "/logos/Vacations.png",
+    keywords: ["vacaciones", "viaje", "vacation", "turismo"],
   },
   money: { label: "Otro", src: "/logos/Money.png", keywords: [] },
 };

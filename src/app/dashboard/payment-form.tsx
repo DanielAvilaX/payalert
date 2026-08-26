@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { PlusCircle } from "lucide-react";
 import { createPayment, type ActionState, type Recurrence } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
@@ -34,7 +34,13 @@ const MONTH_OPTIONS = [
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";
 
-export function PaymentForm({ defaultRemindDaysBefore = 3 }: { defaultRemindDaysBefore?: number }) {
+export function PaymentForm({
+  defaultRemindDaysBefore = 3,
+  onSuccess,
+}: {
+  defaultRemindDaysBefore?: number;
+  onSuccess?: () => void;
+}) {
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
@@ -46,6 +52,14 @@ export function PaymentForm({ defaultRemindDaysBefore = 3 }: { defaultRemindDays
     createPayment,
     undefined
   );
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (wasPending.current && !pending && !state?.error) {
+      onSuccess?.();
+    }
+    wasPending.current = pending;
+  }, [pending, state, onSuccess]);
 
   function handleNameChange(value: string) {
     setName(value);

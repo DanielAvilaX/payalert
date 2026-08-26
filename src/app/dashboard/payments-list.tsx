@@ -67,7 +67,7 @@ export function PaymentsList({ payments }: { payments: Payment[] }) {
       </div>
 
       {sorted.length ? (
-        <ul className="scrollbar-glass flex max-h-[30rem] flex-col gap-2 overflow-y-auto pr-1">
+        <ul className="scrollbar-glass flex max-h-[42rem] flex-col gap-2 overflow-y-auto pr-1">
           <AnimatePresence initial={false}>
             {sorted.map((payment, i) => (
               <PaymentRow key={payment.id} payment={payment} index={i} />

@@ -21,28 +21,28 @@ export function StatCards({
 }) {
   const stats: Stat[] = [
     {
-      label: "Próximos pagos",
+      label: "Próximos",
       value: String(upcomingCount),
       hint: "Esta semana",
       icon: Wallet,
       bg: "bg-emerald-500",
     },
     {
-      label: "Total mensual (aprox)",
+      label: "Total mensual",
       value: `$${monthlyTotal.toLocaleString("es-CO")}`,
-      hint: "En pagos mensuales",
+      hint: "Aprox., pagos mensuales",
       icon: Calendar,
       bg: "bg-amber-500",
     },
     {
-      label: "Recordatorios activos",
+      label: "Recordatorios",
       value: String(activeReminders),
       hint: "En Telegram",
       icon: Bell,
       bg: "bg-blue-500",
     },
     {
-      label: "Pagos completados",
+      label: "Completados",
       value: String(completedThisMonth),
       hint: "Este mes",
       icon: BarChart3,
