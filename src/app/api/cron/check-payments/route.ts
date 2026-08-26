@@ -28,9 +28,17 @@ const CATCH_UP_WINDOW_MS = 90 * 60 * 1000;
 // Colombia is UTC-5 year-round (no DST).
 const COLOMBIA_OFFSET_MINUTES = 5 * 60;
 
-function daysUntil(dueDate: string): number {
-  const today = new Date();
-  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+// UTC crosses into "tomorrow" 5 hours before Colombia does, so "today" for
+// day-counting and for building local time-of-day slots must be Colombia's
+// calendar date, not UTC's - otherwise every evening (~7pm-midnight
+// Colombia) reminders land a day off.
+function colombiaToday(now: Date): string {
+  return new Date(now.getTime() - COLOMBIA_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
+}
+
+function daysUntil(dueDate: string, todayStr: string): number {
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const todayUtc = Date.UTC(ty, tm - 1, td);
   const [year, month, day] = dueDate.split("-").map(Number);
   const dueUtc = Date.UTC(year, month - 1, day);
   return Math.round((dueUtc - todayUtc) / 86_400_000);
@@ -176,7 +184,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = colombiaToday(now);
 
   // Recurring payments that were marked paid stay that way (green check,
   // no reminders) until their due date actually passes - only then do they
@@ -261,7 +269,7 @@ export async function GET(request: NextRequest) {
   let sent = 0;
 
   for (const payment of payments) {
-    const remaining = daysUntil(payment.due_date);
+    const remaining = daysUntil(payment.due_date, todayStr);
     const rules = rulesByPayment.get(payment.id) ?? [];
 
     // Overdue always fires (once a day) regardless of custom rules - the
