@@ -5,10 +5,15 @@ import { PaymentsList } from "@/app/dashboard/payments-list";
 
 export default async function PagosPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data: payments } = await supabase
     .from("payments")
     .select("*")
     .order("due_date", { ascending: true });
+
+  const defaultDays = (user?.user_metadata?.default_remind_days_before as number | undefined) ?? 3;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -27,7 +32,7 @@ export default async function PagosPage() {
             </span>
             Información del pago
           </h2>
-          <PaymentForm />
+          <PaymentForm defaultRemindDaysBefore={defaultDays} />
         </section>
 
         <section className="flex min-h-0 flex-col gap-3">

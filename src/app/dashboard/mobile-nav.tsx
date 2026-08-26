@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Wallet, BarChart3, Settings } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/pagos", label: "Pagos", icon: Wallet },
   { href: "/dashboard/resumen", label: "Resumen", icon: BarChart3 },
+  { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings },
 ];
 
 export function MobileNav() {

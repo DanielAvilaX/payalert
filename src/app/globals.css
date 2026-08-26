@@ -181,3 +181,36 @@ body {
     animation: none;
   }
 }
+
+@keyframes loading-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.55) translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1) translateY(-14px);
+    opacity: 1;
+  }
+}
+
+@keyframes loading-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+.loading-dot {
+  animation: loading-bounce 1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.loading-glow {
+  animation: loading-glow 1.6s ease-in-out infinite;
+}

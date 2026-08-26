@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { nextDueDate, type Recurrence } from "@/lib/dates";
 
 type Payment = {
   id: string;
@@ -121,6 +122,28 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  // Recurring payments that were marked paid stay that way (green check,
+  // no reminders) until their due date actually passes - only then do they
+  // roll forward to the next cycle and reopen as unpaid. Paying early
+  // shouldn't instantly reopen next month's bill.
+  const { data: dueRollovers } = await supabase
+    .from("payments")
+    .select("id, due_date, recurrence")
+    .eq("is_paid", true)
+    .neq("recurrence", "none")
+    .lt("due_date", todayStr);
+
+  for (const payment of dueRollovers ?? []) {
+    await supabase
+      .from("payments")
+      .update({
+        due_date: nextDueDate(payment.due_date, payment.recurrence as Recurrence),
+        is_paid: false,
+      })
+      .eq("id", payment.id);
+  }
 
   const { data: paymentsData, error } = await supabase
     .from("payments")

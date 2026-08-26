@@ -34,7 +34,7 @@ const MONTH_OPTIONS = [
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";
 
-export function PaymentForm() {
+export function PaymentForm({ defaultRemindDaysBefore = 3 }: { defaultRemindDaysBefore?: number }) {
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
@@ -179,7 +179,7 @@ export function PaymentForm() {
           name="remind_days_before"
           type="number"
           min={0}
-          defaultValue={3}
+          defaultValue={defaultRemindDaysBefore}
           className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
         />
         días antes

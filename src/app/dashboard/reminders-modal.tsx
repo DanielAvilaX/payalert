@@ -9,6 +9,8 @@ import {
   type ReminderRule,
 } from "@/app/dashboard/reminder-actions";
 import { Spinner } from "@/app/dashboard/spinner";
+import { LoadingDots } from "@/app/dashboard/loading-dots";
+import { describeReminderRule } from "@/lib/reminder-format";
 
 const INTERVAL_OPTIONS = [
   { value: "30", label: "Cada 30 min" },
@@ -20,17 +22,6 @@ const INTERVAL_OPTIONS = [
 ];
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
-
-function describeRule(rule: ReminderRule): string {
-  const day =
-    rule.days_before_due === 0
-      ? "El día del pago"
-      : `${rule.days_before_due} día${rule.days_before_due > 1 ? "s" : ""} antes`;
-  const time = rule.end_time
-    ? `${rule.start_time.slice(0, 5)}–${rule.end_time.slice(0, 5)}, cada ${rule.repeat_interval_minutes} min`
-    : `a las ${rule.start_time.slice(0, 5)}`;
-  return `${day} · ${time}`;
-}
 
 export function RemindersModal({
   paymentId,
@@ -112,9 +103,7 @@ export function RemindersModal({
         </p>
 
         {loading ? (
-          <div className="flex justify-center py-6">
-            <Spinner size={22} />
-          </div>
+          <LoadingDots />
         ) : (
           <ul className="mb-4 flex flex-col gap-2">
             {rules.map((rule) => (
@@ -122,7 +111,7 @@ export function RemindersModal({
                 key={rule.id}
                 className="glass-input flex items-center justify-between rounded-lg px-3 py-2 text-sm"
               >
-                <span>{describeRule(rule)}</span>
+                <span>{describeReminderRule(rule)}</span>
                 <button
                   type="button"
                   onClick={() => handleDelete(rule.id)}
