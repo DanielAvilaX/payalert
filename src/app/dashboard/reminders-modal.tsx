@@ -88,7 +88,7 @@ export function RemindersModal({
                 <Bell size={15} className="shrink-0 text-accent" />
                 Recordatorios
               </h2>
-              <p className="truncate text-sm text-muted">{paymentName}</p>
+              <p className="text-sm text-muted break-words">{paymentName}</p>
             </div>
           </div>
           <button

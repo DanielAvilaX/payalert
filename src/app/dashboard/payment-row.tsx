@@ -9,7 +9,7 @@ import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Spinner } from "@/app/dashboard/spinner";
-import { ConfirmModal } from "@/app/dashboard/confirm-modal";
+import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModal } from "@/app/dashboard/reminders-modal";
 
 const RECURRENCE_LABEL: Record<string, string> = {
@@ -68,11 +68,10 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     payment.amount != null ? `$${Number(payment.amount).toLocaleString("es-CO")}` : ""
   );
   const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const confirmDelete = useConfirmDelete();
 
   function handleDelete() {
-    setConfirmingDelete(false);
     setError(null);
     startTransition(async () => {
       try {
@@ -180,18 +179,18 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     <motion.li
       layout
       {...entrance}
-      className={`glass-panel flex items-center justify-between gap-3 rounded-2xl p-4 transition-colors ${
+      className={`glass-panel flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-2xl p-4 transition-colors ${
         payment.is_paid ? "border-emerald-500/30 bg-emerald-500/[0.04]" : ""
       }`}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <LogoBadge logo={payment.logo} />
         <div className="min-w-0">
-          <p className="truncate font-medium">
+          <p className="font-medium break-words">
             {payment.name}{" "}
             {payment.is_paid && <span className="text-xs text-emerald-400">(pagado)</span>}
           </p>
-          <p className="truncate text-sm text-muted">
+          <p className="text-sm text-muted">
             {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
             {payment.amount != null &&
               ` · $${Number(payment.amount).toLocaleString("es-CO")}`}
@@ -241,21 +240,19 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         <button
           type="button"
           disabled={pending}
-          onClick={() => setConfirmingDelete(true)}
+          onClick={() =>
+            confirmDelete({
+              title: "Eliminar pago",
+              description: `¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`,
+              onConfirm: handleDelete,
+            })
+          }
           aria-label={`Eliminar ${payment.name}`}
           className="rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-red-400 transition hover:bg-red-500/20 active:scale-95 disabled:opacity-50"
         >
           <Trash2 size={18} />
         </button>
       </div>
-
-      <ConfirmModal
-        open={confirmingDelete}
-        title="Eliminar pago"
-        description={`¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmingDelete(false)}
-      />
 
       <RemindersModal
         paymentId={payment.id}

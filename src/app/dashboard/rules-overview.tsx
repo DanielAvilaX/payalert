@@ -60,7 +60,7 @@ export function RulesOverview({ rules }: { rules: RuleWithPayment[] }) {
         <div key={name}>
           <div className="mb-2 flex items-center gap-2.5">
             <PaymentLogo logo={logo} />
-            <p className="truncate text-sm font-medium">{name}</p>
+            <p className="text-sm font-medium break-words">{name}</p>
           </div>
           <ul className="flex flex-col gap-2">
             {rulesForPayment.map((rule) => (

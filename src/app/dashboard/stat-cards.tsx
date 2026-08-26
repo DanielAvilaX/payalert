@@ -64,9 +64,9 @@ export function StatCards({
             <Icon size={26} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm text-muted">{label}</p>
-            <p className="font-heading text-2xl font-semibold">{value}</p>
-            <p className="truncate text-xs text-muted">{hint}</p>
+            <p className="text-sm text-muted">{label}</p>
+            <p className="font-heading text-2xl font-semibold break-words">{value}</p>
+            <p className="text-xs text-muted">{hint}</p>
           </div>
         </div>
       ))}

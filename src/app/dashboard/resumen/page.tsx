@@ -98,7 +98,7 @@ export default async function ResumenPage() {
                 <li key={logo} className="flex items-center gap-3">
                   <LogoIcon logo={logo} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{logoConfig(logo).label}</p>
+                    <p className="text-sm break-words">{logoConfig(logo).label}</p>
                     <p className="text-xs text-muted">
                       {count} pago{count === 1 ? "" : "s"}
                     </p>
@@ -124,7 +124,7 @@ export default async function ResumenPage() {
               {recentEvents.map((event) => (
                 <li key={event.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm">{event.name}</p>
+                    <p className="text-sm break-words">{event.name}</p>
                     <p className="text-xs text-muted">
                       {new Date(event.completed_at).toLocaleDateString("es-CO")}
                     </p>
