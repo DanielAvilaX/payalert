@@ -29,6 +29,7 @@ export async function createPayment(
   const logo = String(formData.get("logo") ?? "money");
   const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
+  const isAutomatic = formData.get("is_automatic") === "on";
 
   // The date fields collected depend on how often the payment repeats:
   // monthly -> just a day-of-month, yearly -> day + month, weekly -> day of
@@ -75,6 +76,7 @@ export async function createPayment(
     due_date: dueDate,
     recurrence,
     remind_days_before: remindDaysBefore,
+    is_automatic: isAutomatic,
   });
 
   if (error) return { error: error.message };
@@ -92,6 +94,7 @@ export async function updatePayment(
   const name = String(formData.get("name") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "");
   const logo = String(formData.get("logo") ?? "money");
+  const isAutomatic = formData.get("is_automatic") === "on";
   const dueDate = String(formData.get("due_date") ?? "");
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
@@ -105,6 +108,7 @@ export async function updatePayment(
       logo,
       due_date: dueDate,
       remind_days_before: remindDaysBefore,
+      is_automatic: isAutomatic,
     })
     .eq("id", id);
 

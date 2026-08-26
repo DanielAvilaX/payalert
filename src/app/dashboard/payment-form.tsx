@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Zap } from "lucide-react";
 import { createPayment, type ActionState, type Recurrence } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { detectLogo, type LogoId } from "@/lib/logos";
@@ -197,6 +197,12 @@ export function PaymentForm({
           className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
         />
         días antes
+      </label>
+
+      <label className="flex items-center gap-2 text-sm text-muted">
+        <input type="checkbox" name="is_automatic" className="accent-emerald-500" />
+        <Zap size={14} className="text-emerald-400" />
+        Pago automático (débito/domiciliación)
       </label>
 
       {state?.error && <p className="text-sm text-red-400">{state.error}</p>}

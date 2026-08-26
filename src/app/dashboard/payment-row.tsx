@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Trash2, Pencil, CheckCircle2, X, Bell } from "lucide-react";
+import { Trash2, Pencil, CheckCircle2, X, Bell, Zap } from "lucide-react";
 import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
@@ -29,34 +29,43 @@ export type Payment = {
   recurrence: string;
   remind_days_before: number;
   is_paid: boolean;
+  is_automatic: boolean;
 };
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
 
 const springTransition = { type: "spring" as const, stiffness: 300, damping: 26 };
 
-function LogoBadge({ logo }: { logo: string | null }) {
+function LogoBadge({ logo, automatic }: { logo: string | null; automatic?: boolean }) {
   const cfg = logoConfig(logo);
-  if (cfg.icon) {
-    const Icon = cfg.icon;
-    return (
-      <div
-        title={cfg.label}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10"
-      >
-        <Icon size={22} />
-      </div>
-    );
-  }
   return (
-    <Image
-      src={cfg.src!}
-      alt=""
-      width={48}
-      height={48}
-      title={cfg.label}
-      className="h-12 w-12 shrink-0 rounded-full object-cover"
-    />
+    <div className="relative shrink-0">
+      {cfg.icon ? (
+        <div
+          title={cfg.label}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10"
+        >
+          <cfg.icon size={22} />
+        </div>
+      ) : (
+        <Image
+          src={cfg.src!}
+          alt=""
+          width={48}
+          height={48}
+          title={cfg.label}
+          className="h-12 w-12 rounded-full object-cover"
+        />
+      )}
+      {automatic && (
+        <span
+          title="Pago automático"
+          className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-black ring-2 ring-[var(--background)]"
+        >
+          <Zap size={11} fill="currentColor" />
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -150,6 +159,17 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
             días antes
           </label>
 
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              name="is_automatic"
+              defaultChecked={payment.is_automatic}
+              className="accent-emerald-500"
+            />
+            <Zap size={14} className="text-emerald-400" />
+            Pago automático (débito/domiciliación)
+          </label>
+
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex gap-3">
@@ -184,7 +204,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
       }`}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <LogoBadge logo={payment.logo} />
+        <LogoBadge logo={payment.logo} automatic={payment.is_automatic} />
         <div className="min-w-0">
           <p className="font-medium break-words">
             {payment.name}{" "}
