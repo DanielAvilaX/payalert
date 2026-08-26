@@ -158,6 +158,23 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
               className={inputClass}
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor={`recurrence-${payment.id}`} className="text-sm text-muted">
+              Frecuencia
+            </label>
+            <select
+              id={`recurrence-${payment.id}`}
+              name="recurrence"
+              defaultValue={payment.recurrence}
+              className={inputClass}
+            >
+              {Object.entries(RECURRENCE_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
           <label className="flex items-center gap-2 text-sm text-muted">
             Avisar
             <input

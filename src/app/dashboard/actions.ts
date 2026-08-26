@@ -84,7 +84,8 @@ export async function createPayment(
 }
 
 // Edits an existing payment. Unlike creation, editing always works off a
-// concrete date - you already know the due date you're correcting.
+// concrete date - you already know the due date you're correcting - but the
+// recurrence itself can still be changed.
 export async function updatePayment(
   id: string,
   formData: FormData
@@ -96,6 +97,7 @@ export async function updatePayment(
   const logo = String(formData.get("logo") ?? "money");
   const isAutomatic = formData.get("is_automatic") === "on";
   const dueDate = String(formData.get("due_date") ?? "");
+  const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
 
   if (!name || !dueDate) return { error: "Faltan campos requeridos" };
@@ -107,6 +109,7 @@ export async function updatePayment(
       amount: parseMoneyInput(amountRaw),
       logo,
       due_date: dueDate,
+      recurrence,
       remind_days_before: remindDaysBefore,
       is_automatic: isAutomatic,
     })

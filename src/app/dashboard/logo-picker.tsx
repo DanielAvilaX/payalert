@@ -67,7 +67,7 @@ export function LogoPicker({
       </button>
 
       {open && (
-        <div className="glass-panel absolute z-20 mt-2 grid max-h-72 w-full min-w-[18rem] grid-cols-4 gap-2 overflow-y-auto rounded-lg p-3 shadow-xl animate-pop-in">
+        <div className="glass-panel absolute z-20 mt-2 flex max-h-72 w-full min-w-[18rem] flex-col gap-1 overflow-y-auto rounded-lg p-2 shadow-xl animate-pop-in">
           {LOGO_OPTIONS.map(([id, cfg]) => (
             <button
               key={id}
@@ -76,14 +76,12 @@ export function LogoPicker({
                 onChange(id);
                 setOpen(false);
               }}
-              className={`flex flex-col items-center gap-1 rounded-lg p-2 transition hover:bg-white/10 active:scale-95 ${
+              className={`flex items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 active:scale-95 ${
                 id === value ? "ring-2 ring-accent" : ""
               }`}
             >
-              <LogoThumb id={id} size={40} />
-              <span className="text-center text-[10px] leading-tight text-muted">
-                {cfg.label}
-              </span>
+              <LogoThumb id={id} size={32} />
+              <span className="min-w-0 flex-1 break-words text-sm text-muted">{cfg.label}</span>
             </button>
           ))}
         </div>
