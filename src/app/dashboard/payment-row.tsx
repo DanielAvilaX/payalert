@@ -11,7 +11,7 @@ import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
 import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
-import { RemindersModal } from "@/app/dashboard/reminders-modal";
+import { useOpenReminders } from "@/app/dashboard/reminders-modal-context";
 import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS, MONTH_OPTIONS } from "@/app/dashboard/recurrence-options";
 
 const RECURRENCE_LABEL: Record<string, string> = {
@@ -85,12 +85,12 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     payment.amount != null ? `$${Number(payment.amount).toLocaleString("es-CO")}` : ""
   );
   const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
-  const [remindersOpen, setRemindersOpen] = useState(false);
   const [recurrence, setRecurrence] = useState<Recurrence>(payment.recurrence as Recurrence);
   const initialParts = dateParts(payment.due_date);
   const [month, setMonth] = useState(initialParts.month);
   const [weekday, setWeekday] = useState(initialParts.weekday);
   const confirmDelete = useConfirmDelete();
+  const openReminders = useOpenReminders();
 
   function handleDelete() {
     setError(null);
@@ -295,11 +295,11 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     <motion.li
       layout
       {...entrance}
-      className={`glass-panel flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-2xl p-4 transition-colors ${
+      className={`glass-panel flex flex-col gap-3 rounded-2xl p-4 transition-colors sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-3 sm:gap-y-2 ${
         payment.is_paid ? "border-emerald-500/30 bg-emerald-500/[0.04]" : ""
       }`}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3 sm:flex-1">
         <LogoBadge logo={payment.logo} automatic={payment.is_automatic} />
         <div className="min-w-0">
           <p className="font-medium break-words">
@@ -314,7 +314,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5 text-sm">
+      <div className="flex shrink-0 items-center justify-end gap-1.5 text-sm">
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -326,7 +326,13 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         </button>
         <button
           type="button"
-          onClick={() => setRemindersOpen(true)}
+          onClick={() =>
+            openReminders({
+              paymentId: payment.id,
+              paymentName: payment.name,
+              paymentLogo: payment.logo,
+            })
+          }
           aria-label="Configurar recordatorios"
           title="Configurar recordatorios"
           className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
@@ -379,14 +385,6 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           <Trash2 size={18} />
         </button>
       </div>
-
-      <RemindersModal
-        paymentId={payment.id}
-        paymentName={payment.name}
-        paymentLogo={payment.logo}
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-      />
     </motion.li>
   );
 }
