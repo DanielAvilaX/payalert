@@ -8,28 +8,7 @@ import { detectLogo, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
-
-const RECURRENCE_OPTIONS = [
-  { value: "none", label: "Único" },
-  { value: "weekly", label: "Semanal" },
-  { value: "monthly", label: "Mensual" },
-  { value: "yearly", label: "Anual" },
-];
-
-const WEEKDAY_OPTIONS = [
-  { value: "1", label: "Lunes" },
-  { value: "2", label: "Martes" },
-  { value: "3", label: "Miércoles" },
-  { value: "4", label: "Jueves" },
-  { value: "5", label: "Viernes" },
-  { value: "6", label: "Sábado" },
-  { value: "0", label: "Domingo" },
-];
-
-const MONTH_OPTIONS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-].map((label, i) => ({ value: String(i + 1), label }));
+import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS, MONTH_OPTIONS } from "@/app/dashboard/recurrence-options";
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";

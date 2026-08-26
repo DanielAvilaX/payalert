@@ -4,13 +4,15 @@ import { useState, useTransition } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Trash2, Pencil, CheckCircle2, RotateCcw, X, Bell, Zap } from "lucide-react";
-import { deletePayment, markPaid, unmarkPaid, updatePayment } from "@/app/dashboard/actions";
+import { deletePayment, markPaid, unmarkPaid, updatePayment, type Recurrence } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
+import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
 import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModal } from "@/app/dashboard/reminders-modal";
+import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS, MONTH_OPTIONS } from "@/app/dashboard/recurrence-options";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
@@ -35,6 +37,12 @@ export type Payment = {
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
 
 const springTransition = { type: "spring" as const, stiffness: 300, damping: 26 };
+
+function dateParts(dueDate: string) {
+  const [y, m, d] = dueDate.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return { day: String(d), month: String(m), weekday: String(weekday) };
+}
 
 function LogoBadge({ logo, automatic }: { logo: string | null; automatic?: boolean }) {
   const cfg = logoConfig(logo);
@@ -78,6 +86,10 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
   );
   const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [recurrence, setRecurrence] = useState<Recurrence>(payment.recurrence as Recurrence);
+  const initialParts = dateParts(payment.due_date);
+  const [month, setMonth] = useState(initialParts.month);
+  const [weekday, setWeekday] = useState(initialParts.weekday);
   const confirmDelete = useConfirmDelete();
 
   function handleDelete() {
@@ -150,31 +162,87 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
               placeholder="Monto (opcional)"
               className={inputClass}
             />
-            <input
-              name="due_date"
-              type="date"
-              defaultValue={payment.due_date}
-              required
-              className={inputClass}
-            />
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`recurrence-${payment.id}`} className="text-sm text-muted">
+                Frecuencia
+              </label>
+              <select
+                id={`recurrence-${payment.id}`}
+                name="recurrence"
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                className={inputClass}
+              >
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
           <div className="flex flex-col gap-1">
-            <label htmlFor={`recurrence-${payment.id}`} className="text-sm text-muted">
-              Frecuencia
-            </label>
-            <select
-              id={`recurrence-${payment.id}`}
-              name="recurrence"
-              defaultValue={payment.recurrence}
-              className={inputClass}
-            >
-              {Object.entries(RECURRENCE_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <label className="text-sm text-muted">Fecha de pago</label>
+
+            {recurrence === "monthly" && (
+              <input
+                name="day_of_month"
+                type="number"
+                min={1}
+                max={31}
+                defaultValue={initialParts.day}
+                placeholder="Día del mes (ej. 15)"
+                required
+                className={inputClass}
+              />
+            )}
+
+            {recurrence === "yearly" && (
+              <div className="flex gap-2">
+                <input
+                  name="day_of_month"
+                  type="number"
+                  min={1}
+                  max={31}
+                  defaultValue={initialParts.day}
+                  placeholder="Día"
+                  required
+                  className={`${inputClass} w-1/2`}
+                />
+                <div className="w-1/2">
+                  <Select
+                    name="month"
+                    value={month}
+                    onChange={setMonth}
+                    options={MONTH_OPTIONS}
+                    placeholder="Mes"
+                  />
+                </div>
+              </div>
+            )}
+
+            {recurrence === "weekly" && (
+              <Select
+                name="weekday"
+                value={weekday}
+                onChange={setWeekday}
+                options={WEEKDAY_OPTIONS}
+                placeholder="Día de la semana"
+              />
+            )}
+
+            {recurrence === "none" && (
+              <input
+                name="due_date"
+                type="date"
+                defaultValue={payment.due_date}
+                required
+                className={inputClass}
+              />
+            )}
           </div>
+
           <label className="flex items-center gap-2 text-sm text-muted">
             Avisar
             <input

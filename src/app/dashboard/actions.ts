@@ -14,6 +14,41 @@ import {
 export type { Recurrence };
 export type ActionState = { error?: string } | undefined;
 
+// The date fields collected depend on how often the payment repeats:
+// monthly -> just a day-of-month, yearly -> day + month, weekly -> day of
+// the week, único -> a full date. Whichever isn't relevant isn't asked for.
+function resolveDueDate(
+  formData: FormData,
+  recurrence: Recurrence
+): { dueDate: string } | { error: string } {
+  switch (recurrence) {
+    case "monthly": {
+      const dayOfMonth = Number(formData.get("day_of_month") ?? "");
+      if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
+        return { error: "Día del mes inválido" };
+      }
+      return { dueDate: nearestMonthlyDueDate(dayOfMonth) };
+    }
+    case "yearly": {
+      const day = Number(formData.get("day_of_month") ?? "");
+      const month = Number(formData.get("month") ?? "");
+      if (!day || day < 1 || day > 31 || !month || month < 1 || month > 12) {
+        return { error: "Día o mes inválido" };
+      }
+      return { dueDate: nearestYearlyDueDate(day, month) };
+    }
+    case "weekly": {
+      const weekday = formData.get("weekday");
+      if (weekday === null || weekday === "") {
+        return { error: "Falta el día de la semana" };
+      }
+      return { dueDate: nearestWeekdayDueDate(Number(weekday)) };
+    }
+    default:
+      return { dueDate: String(formData.get("due_date") ?? "") };
+  }
+}
+
 export async function createPayment(
   _prevState: ActionState,
   formData: FormData
@@ -31,39 +66,9 @@ export async function createPayment(
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
   const isAutomatic = formData.get("is_automatic") === "on";
 
-  // The date fields collected depend on how often the payment repeats:
-  // monthly -> just a day-of-month, yearly -> day + month, weekly -> day of
-  // the week, único -> a full date. Whichever isn't relevant isn't asked for.
-  let dueDate: string;
-  switch (recurrence) {
-    case "monthly": {
-      const dayOfMonth = Number(formData.get("day_of_month") ?? "");
-      if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
-        return { error: "Día del mes inválido" };
-      }
-      dueDate = nearestMonthlyDueDate(dayOfMonth);
-      break;
-    }
-    case "yearly": {
-      const day = Number(formData.get("day_of_month") ?? "");
-      const month = Number(formData.get("month") ?? "");
-      if (!day || day < 1 || day > 31 || !month || month < 1 || month > 12) {
-        return { error: "Día o mes inválido" };
-      }
-      dueDate = nearestYearlyDueDate(day, month);
-      break;
-    }
-    case "weekly": {
-      const weekday = formData.get("weekday");
-      if (weekday === null || weekday === "") {
-        return { error: "Falta el día de la semana" };
-      }
-      dueDate = nearestWeekdayDueDate(Number(weekday));
-      break;
-    }
-    default:
-      dueDate = String(formData.get("due_date") ?? "");
-  }
+  const resolved = resolveDueDate(formData, recurrence);
+  if ("error" in resolved) return resolved;
+  const { dueDate } = resolved;
 
   if (!name || !dueDate) return { error: "Faltan campos requeridos" };
 
@@ -83,9 +88,9 @@ export async function createPayment(
   revalidatePath("/dashboard", "layout");
 }
 
-// Edits an existing payment. Unlike creation, editing always works off a
-// concrete date - you already know the due date you're correcting - but the
-// recurrence itself can still be changed.
+// Edits an existing payment. The recurrence can be changed just like on
+// creation, so the due date is derived from whichever fields that recurrence
+// asks for (day-of-month, day+month, weekday, or a full date).
 export async function updatePayment(
   id: string,
   formData: FormData
@@ -96,9 +101,12 @@ export async function updatePayment(
   const amountRaw = String(formData.get("amount") ?? "");
   const logo = String(formData.get("logo") ?? "money");
   const isAutomatic = formData.get("is_automatic") === "on";
-  const dueDate = String(formData.get("due_date") ?? "");
   const recurrence = String(formData.get("recurrence") ?? "none") as Recurrence;
   const remindDaysBefore = Number(formData.get("remind_days_before") ?? 3);
+
+  const resolved = resolveDueDate(formData, recurrence);
+  if ("error" in resolved) return resolved;
+  const { dueDate } = resolved;
 
   if (!name || !dueDate) return { error: "Faltan campos requeridos" };
 
