@@ -1,0 +1,20 @@
+name: Payment reminders
+
+# Vercel's free (Hobby) plan only allows a cron job to run once a day, which
+# isn't enough for escalating reminders (e.g. "every 2 hours the day
+# before"). This workflow pings the same endpoint every 15 minutes instead,
+# at no cost, so the granularity comes from here rather than Vercel Cron.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder check
+        run: |
+          curl -sf -X GET "${{ vars.APP_URL }}/api/cron/check-payments" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

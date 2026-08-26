@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Trash2, Pencil, CheckCircle2, X } from "lucide-react";
+import { Trash2, Pencil, CheckCircle2, X, Bell } from "lucide-react";
 import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Spinner } from "@/app/dashboard/spinner";
 import { ConfirmModal } from "@/app/dashboard/confirm-modal";
+import { RemindersModal } from "@/app/dashboard/reminders-modal";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
@@ -68,6 +69,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
   );
   const [logo, setLogo] = useState<LogoId>((payment.logo as LogoId) ?? "money");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
 
   function handleDelete() {
     setConfirmingDelete(false);
@@ -207,6 +209,15 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         >
           <Pencil size={18} />
         </button>
+        <button
+          type="button"
+          onClick={() => setRemindersOpen(true)}
+          aria-label="Configurar recordatorios"
+          title="Configurar recordatorios"
+          className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+        >
+          <Bell size={18} />
+        </button>
         {payment.is_paid ? (
           <div
             aria-label="Pagado"
@@ -244,6 +255,13 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         description={`¿Eliminar "${payment.name}"? Esta acción no se puede deshacer.`}
         onConfirm={handleDelete}
         onCancel={() => setConfirmingDelete(false)}
+      />
+
+      <RemindersModal
+        paymentId={payment.id}
+        paymentName={payment.name}
+        open={remindersOpen}
+        onClose={() => setRemindersOpen(false)}
       />
     </motion.li>
   );

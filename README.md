@@ -16,7 +16,7 @@ Recordatorios de pago por Telegram. Next.js (App Router) + Supabase (Postgres + 
    npm install
    ```
 
-2. **Base de datos**: en el SQL Editor de tu proyecto Supabase, ejecuta [`supabase/schema.sql`](./supabase/schema.sql). Crea las tablas `payments`, `telegram_connections`, `telegram_link_tokens`, `notification_log` con RLS habilitado.
+2. **Base de datos**: en el SQL Editor de tu proyecto Supabase, ejecuta en orden [`supabase/schema.sql`](./supabase/schema.sql) y luego cada archivo en [`supabase/migrations/`](./supabase/migrations/) (por número). Crea las tablas `payments`, `telegram_connections`, `telegram_link_tokens`, `notification_log`, `payment_events`, `reminder_rules`, `reminder_fires`, todas con RLS habilitado.
 
 3. **Variables de entorno**: copia `.env.example` a `.env.local` y completa:
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Project Settings > API en Supabase.
@@ -52,11 +52,25 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 ## Deploy en Vercel
 
 1. Importa el repo en Vercel y agrega las mismas variables de entorno del paso 3.
-2. El cron definido en [`vercel.json`](./vercel.json) corre todos los días a las 13:00 UTC (Vercel Cron siempre usa UTC; ajusta la hora según tu zona horaria). El plan Hobby permite como máximo una ejecución diaria por cron job.
+2. El cron definido en [`vercel.json`](./vercel.json) corre todos los días a las 13:00 UTC como respaldo (Vercel Cron siempre usa UTC). El plan Hobby permite como máximo una ejecución diaria por cron job — **no alcanza** para los recordatorios escalonados (ver siguiente sección), por eso existe el workflow de GitHub Actions.
 3. Corre `setWebhook` (paso anterior) apuntando al dominio de producción.
+
+## Recordatorios escalonados (cada X horas, etc.)
+
+El plan gratuito de Vercel solo deja correr un cron 1 vez al día, insuficiente para reglas tipo "cada 2 horas el día antes". Para lograrlo sin pagar Vercel Pro, [`.github/workflows/reminders.yml`](./.github/workflows/reminders.yml) llama al mismo endpoint (`/api/cron/check-payments`) cada 15 minutos usando GitHub Actions (gratis).
+
+Configúralo una vez en el repo de GitHub:
+
+```bash
+gh secret set CRON_SECRET --body "<el mismo valor que en tus env vars>"
+gh variable set APP_URL --body "https://tu-dominio.vercel.app"
+```
+
+Cada pago puede tener reglas personalizadas (botón de campana 🔔 en la lista de pagos) — por ejemplo "2 días antes a mediodía", "2 días antes a las 8pm", y "1 día antes cada 2 horas de 10am a 10pm". Sin reglas personalizadas, se usa el aviso simple de siempre (`remind_days_before`).
 
 ## Cómo funciona el recordatorio
 
-- Cada pago tiene `remind_days_before` (aviso "próximo a vencer"), y automáticamente se avisa el día que vence y si queda vencido sin marcarse como pagado.
-- `notification_log` evita reenviar el mismo aviso más de una vez por fecha de vencimiento.
+- Sin reglas personalizadas: cada pago tiene `remind_days_before` (aviso "próximo a vencer"), y automáticamente se avisa el día que vence y si queda vencido sin marcarse como pagado.
+- Con reglas personalizadas (`reminder_rules`): se evalúan por separado, con mensajes que escalan en urgencia mientras más cerca esté el vencimiento. El aviso de "vencido" simple sigue aplicando siempre, tengas o no reglas personalizadas.
+- `notification_log` / `reminder_fires` evitan reenviar el mismo aviso más de una vez.
 - Al marcar un pago recurrente como pagado, `due_date` avanza automáticamente al siguiente ciclo (semanal/mensual/anual) en vez de desaparecer.
