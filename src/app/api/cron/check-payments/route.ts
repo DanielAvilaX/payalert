@@ -22,8 +22,6 @@ type ReminderRule = {
   repeat_interval_minutes: number | null;
 };
 
-type NotificationKind = "upcoming" | "due" | "overdue";
-
 // How late a fire time is allowed to be and still go out - covers gaps
 // between cron runs (GitHub Actions schedules can lag under load).
 const CATCH_UP_WINDOW_MS = 90 * 60 * 1000;
@@ -52,6 +50,12 @@ function localToUtc(dateStr: string, timeStr: string): Date {
   return new Date(Date.UTC(y, m - 1, d, hh, mm) + COLOMBIA_OFFSET_MINUTES * 60 * 1000);
 }
 
+function formatAmount(payment: Payment): string {
+  return payment.amount != null ? ` ($${Number(payment.amount).toLocaleString("es-CO")})` : "";
+}
+
+// --- Custom per-payment rules (reminder_rules) ---
+
 function fireTimesForRule(rule: ReminderRule, dueDate: string): Date[] {
   const targetDate = subtractDays(dueDate, rule.days_before_due);
 
@@ -67,22 +71,6 @@ function fireTimesForRule(rule: ReminderRule, dueDate: string): Date[] {
     t = new Date(t.getTime() + rule.repeat_interval_minutes * 60_000);
   }
   return times;
-}
-
-function formatAmount(payment: Payment): string {
-  return payment.amount != null ? ` ($${Number(payment.amount).toLocaleString("es-CO")})` : "";
-}
-
-function simpleMessage(kind: NotificationKind, payment: Payment): string {
-  const amountText = formatAmount(payment);
-  switch (kind) {
-    case "upcoming":
-      return `⏰ <b>${payment.name}</b>${amountText} vence el ${payment.due_date}.`;
-    case "due":
-      return `📅 <b>${payment.name}</b>${amountText} vence hoy.`;
-    case "overdue":
-      return `⚠️ <b>${payment.name}</b>${amountText} venció el ${payment.due_date} y sigue sin marcarse como pagado.`;
-  }
 }
 
 // Escalates tone/urgency the closer `fireAt` is to the due date - and, for
@@ -112,6 +100,72 @@ function ruleMessage(payment: Payment, rule: ReminderRule, fireAt: Date): string
   }
 
   return `🔔 ${name} vence en ${rule.days_before_due} días (${payment.due_date}).`;
+}
+
+// --- Default schedule (no custom rules) ---
+//
+// Without custom rules, reminders still escalate on their own: starting at
+// `remind_days_before`, once a day, getting more frequent and more urgent
+// as the due date gets closer. The due day itself is always a single,
+// fixed-tone notice (no escalation within that day) - overdue is handled
+// separately below and keeps repeating once a day until paid.
+
+type GeneralSlot = { time: string; kind: string; text: (payment: Payment, remaining: number) => string };
+
+function generalSchedule(remaining: number): GeneralSlot[] {
+  if (remaining === 0) {
+    return [
+      {
+        time: "09:00",
+        kind: "gen-0",
+        text: (p) => `📅 <b>${p.name}</b>${formatAmount(p)} vence HOY.`,
+      },
+    ];
+  }
+
+  if (remaining === 1) {
+    return [
+      {
+        time: "09:00",
+        kind: "gen-1-a",
+        text: (p) => `⚠️ <b>${p.name}</b>${formatAmount(p)} vence mañana.`,
+      },
+      {
+        time: "14:00",
+        kind: "gen-1-b",
+        text: (p) => `⚠️ <b>${p.name}</b>${formatAmount(p)} vence mañana. Prepáralo hoy.`,
+      },
+      {
+        time: "20:00",
+        kind: "gen-1-c",
+        text: (p) =>
+          `🚨 <b>${p.name}</b>${formatAmount(p)} vence mañana temprano. ¡Últimas horas para prepararlo!`,
+      },
+    ];
+  }
+
+  if (remaining === 2) {
+    return [
+      {
+        time: "09:00",
+        kind: "gen-2-a",
+        text: (p) => `⏰ <b>${p.name}</b>${formatAmount(p)} vence en 2 días (${p.due_date}).`,
+      },
+      {
+        time: "18:00",
+        kind: "gen-2-b",
+        text: (p) => `⏰ <b>${p.name}</b>${formatAmount(p)} vence en 2 días. No lo dejes para el final.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      time: "09:00",
+      kind: "gen-far",
+      text: (p, r) => `🔔 <b>${p.name}</b>${formatAmount(p)} vence en ${r} días (${p.due_date}).`,
+    },
+  ];
 }
 
 export async function GET(request: NextRequest) {
@@ -181,66 +235,58 @@ export async function GET(request: NextRequest) {
     return chatId;
   }
 
+  async function sendOnce(payment: Payment, kind: string, text: string): Promise<boolean> {
+    const { data: existing } = await supabase
+      .from("notification_log")
+      .select("id")
+      .eq("payment_id", payment.id)
+      .eq("kind", kind)
+      .eq("due_date", payment.due_date)
+      .maybeSingle();
+    if (existing) return false;
+
+    const chatId = await chatIdFor(payment.user_id);
+    if (!chatId) return false;
+
+    await sendTelegramMessage(chatId, text);
+    await supabase.from("notification_log").insert({
+      payment_id: payment.id,
+      user_id: payment.user_id,
+      kind,
+      due_date: payment.due_date,
+    });
+    return true;
+  }
+
   let sent = 0;
 
   for (const payment of payments) {
     const remaining = daysUntil(payment.due_date);
     const rules = rulesByPayment.get(payment.id) ?? [];
 
-    // Overdue always fires regardless of custom rules - the escalating
-    // schedule only covers up to the due day itself.
-    if (remaining === -1) {
-      const { data: existing } = await supabase
-        .from("notification_log")
-        .select("id")
-        .eq("payment_id", payment.id)
-        .eq("kind", "overdue")
-        .eq("due_date", payment.due_date)
-        .maybeSingle();
-
-      if (!existing) {
-        const chatId = await chatIdFor(payment.user_id);
-        if (chatId) {
-          await sendTelegramMessage(chatId, simpleMessage("overdue", payment));
-          await supabase.from("notification_log").insert({
-            payment_id: payment.id,
-            user_id: payment.user_id,
-            kind: "overdue",
-            due_date: payment.due_date,
-          });
-          sent += 1;
-        }
-      }
+    // Overdue always fires (once a day) regardless of custom rules - the
+    // escalating schedules only cover up to the due day itself.
+    if (remaining < 0) {
+      const sentNow = await sendOnce(
+        payment,
+        "overdue",
+        `⚠️ <b>${payment.name}</b>${formatAmount(payment)} venció el ${payment.due_date} y sigue sin marcarse como pagado.`
+      );
+      if (sentNow) sent += 1;
     }
 
     if (rules.length === 0) {
-      // No custom schedule - fall back to the simple "N days before" / "due
-      // today" reminders.
-      const kinds: NotificationKind[] = [];
-      if (remaining === payment.remind_days_before) kinds.push("upcoming");
-      if (remaining === 0) kinds.push("due");
+      // No custom schedule - use the automatic default: starting at
+      // remind_days_before, escalating in frequency/urgency each day.
+      if (remaining >= 0 && remaining <= payment.remind_days_before) {
+        for (const slot of generalSchedule(remaining)) {
+          const fireAt = localToUtc(todayStr, slot.time);
+          if (fireAt > now) continue;
+          if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
 
-      for (const kind of kinds) {
-        const { data: existing } = await supabase
-          .from("notification_log")
-          .select("id")
-          .eq("payment_id", payment.id)
-          .eq("kind", kind)
-          .eq("due_date", payment.due_date)
-          .maybeSingle();
-        if (existing) continue;
-
-        const chatId = await chatIdFor(payment.user_id);
-        if (!chatId) continue;
-
-        await sendTelegramMessage(chatId, simpleMessage(kind, payment));
-        await supabase.from("notification_log").insert({
-          payment_id: payment.id,
-          user_id: payment.user_id,
-          kind,
-          due_date: payment.due_date,
-        });
-        sent += 1;
+          const sentNow = await sendOnce(payment, slot.kind, slot.text(payment, remaining));
+          if (sentNow) sent += 1;
+        }
       }
       continue;
     }
