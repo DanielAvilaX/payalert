@@ -23,11 +23,11 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onCancel}
     >
       <div
-        className="glass-panel animate-pop-in w-full max-w-sm rounded-2xl p-6"
+        className="animate-pop-in w-full max-w-sm rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-400">

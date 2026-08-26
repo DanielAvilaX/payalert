@@ -101,13 +101,22 @@ export function PaymentForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>Frecuencia</label>
-          <Select
+          <label htmlFor="recurrence" className={labelClass}>
+            Frecuencia
+          </label>
+          <select
+            id="recurrence"
             name="recurrence"
             value={recurrence}
-            onChange={(v) => setRecurrence(v as Recurrence)}
-            options={RECURRENCE_OPTIONS}
-          />
+            onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+            className={inputClass}
+          >
+            {RECURRENCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1">

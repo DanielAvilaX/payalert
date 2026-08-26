@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Trash2, Pencil, CheckCircle2, X } from "lucide-react";
 import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
@@ -30,6 +31,8 @@ export type Payment = {
 };
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
+
+const springTransition = { type: "spring" as const, stiffness: 300, damping: 26 };
 
 function LogoBadge({ logo }: { logo: string | null }) {
   const cfg = logoConfig(logo);
@@ -101,11 +104,16 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     });
   }
 
-  const style = { animationDelay: `${index * 60}ms` };
+  const entrance = {
+    initial: { opacity: 0, y: 14, scale: 0.96 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, scale: 0.9 },
+    transition: { ...springTransition, delay: index * 0.04 },
+  };
 
   if (editing) {
     return (
-      <li className="glass-panel animate-pop-in rounded-xl p-4" style={style}>
+      <motion.li layout className="glass-panel rounded-xl p-4" {...entrance}>
         <form action={handleSave} className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <input name="name" defaultValue={payment.name} required className={inputClass} />
@@ -162,21 +170,24 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
             </button>
           </div>
         </form>
-      </li>
+      </motion.li>
     );
   }
 
   return (
-    <li
-      className="glass-panel animate-pop-in flex items-center justify-between gap-3 rounded-2xl p-4"
-      style={style}
+    <motion.li
+      layout
+      {...entrance}
+      className={`glass-panel flex items-center justify-between gap-3 rounded-2xl p-4 transition-colors ${
+        payment.is_paid ? "border-emerald-500/30 bg-emerald-500/[0.04]" : ""
+      }`}
     >
       <div className="flex min-w-0 items-center gap-3">
         <LogoBadge logo={payment.logo} />
         <div className="min-w-0">
           <p className="truncate font-medium">
             {payment.name}{" "}
-            {payment.is_paid && <span className="text-xs text-accent">(pagado)</span>}
+            {payment.is_paid && <span className="text-xs text-emerald-400">(pagado)</span>}
           </p>
           <p className="truncate text-sm text-muted">
             {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
@@ -196,14 +207,22 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         >
           <Pencil size={18} />
         </button>
-        {!payment.is_paid && (
+        {payment.is_paid ? (
+          <div
+            aria-label="Pagado"
+            title="Pagado"
+            className="rounded-lg bg-emerald-500/15 p-2 text-emerald-400"
+          >
+            <CheckCircle2 size={18} />
+          </div>
+        ) : (
           <button
             type="button"
             disabled={pending}
             onClick={handleMarkPaid}
             aria-label="Marcar pagado"
             title="Marcar pagado"
-            className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
+            className="rounded-lg p-2 text-muted transition hover:bg-emerald-500/15 hover:text-emerald-400 active:scale-95 disabled:opacity-50"
           >
             {pending ? <Spinner size={18} /> : <CheckCircle2 size={18} />}
           </button>
@@ -226,6 +245,6 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
         onConfirm={handleDelete}
         onCancel={() => setConfirmingDelete(false)}
       />
-    </li>
+    </motion.li>
   );
 }

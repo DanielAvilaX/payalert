@@ -28,7 +28,7 @@ export function StatCards({
       bg: "bg-emerald-500",
     },
     {
-      label: "Total mensual",
+      label: "Total mensual (aprox)",
       value: `$${monthlyTotal.toLocaleString("es-CO")}`,
       hint: "En pagos mensuales",
       icon: Calendar,
