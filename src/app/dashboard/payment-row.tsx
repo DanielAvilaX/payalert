@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Trash2, Pencil, CheckCircle2, X, Bell, Zap } from "lucide-react";
-import { deletePayment, markPaid, updatePayment } from "@/app/dashboard/actions";
+import { Trash2, Pencil, CheckCircle2, RotateCcw, X, Bell, Zap } from "lucide-react";
+import { deletePayment, markPaid, unmarkPaid, updatePayment } from "@/app/dashboard/actions";
 import { formatMoneyInput } from "@/lib/format";
 import { logoConfig, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
@@ -96,6 +96,17 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     startTransition(async () => {
       try {
         await markPaid(payment.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo actualizar");
+      }
+    });
+  }
+
+  function handleUnmarkPaid() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await unmarkPaid(payment.id);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo actualizar");
       }
@@ -238,13 +249,23 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           <Bell size={18} />
         </button>
         {payment.is_paid ? (
-          <div
-            aria-label="Pagado"
-            title="Pagado"
-            className="rounded-lg bg-emerald-500/15 p-2 text-emerald-400"
+          <button
+            type="button"
+            disabled={pending}
+            onClick={handleUnmarkPaid}
+            aria-label="Marcar como pendiente"
+            title="Marcar como pendiente"
+            className="group rounded-lg bg-emerald-500/15 p-2 text-emerald-400 transition hover:bg-emerald-500/25 active:scale-95 disabled:opacity-50"
           >
-            <CheckCircle2 size={18} />
-          </div>
+            {pending ? (
+              <Spinner size={18} />
+            ) : (
+              <>
+                <CheckCircle2 size={18} className="group-hover:hidden" />
+                <RotateCcw size={18} className="hidden group-hover:block" />
+              </>
+            )}
+          </button>
         ) : (
           <button
             type="button"

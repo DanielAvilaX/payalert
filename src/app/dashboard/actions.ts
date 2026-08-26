@@ -158,6 +158,29 @@ export async function markPaid(id: string) {
   revalidatePath("/dashboard", "layout");
 }
 
+// Undoes markPaid - back to pending, and removes the completion event it
+// logged so stats/history don't keep a phantom entry for it.
+export async function unmarkPaid(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("payments").update({ is_paid: false }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  const { data: lastEvent } = await supabase
+    .from("payment_events")
+    .select("id")
+    .eq("payment_id", id)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastEvent) {
+    await supabase.from("payment_events").delete().eq("id", lastEvent.id);
+  }
+
+  revalidatePath("/dashboard", "layout");
+}
+
 export async function generateTelegramLinkToken(): Promise<string> {
   const supabase = await createClient();
   const {
