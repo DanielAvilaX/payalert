@@ -2,11 +2,7 @@ import Image from "next/image";
 import { PieChart, History, TrendingUp } from "lucide-react";
 import { logoConfig } from "@/lib/logos";
 import { createClient } from "@/lib/supabase/server";
-
-function startOfMonthISO(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-}
+import { colombiaStartOfMonthISO } from "@/lib/dates";
 
 function LogoIcon({ logo, size = 40 }: { logo: string | null; size?: number }) {
   const cfg = logoConfig(logo);
@@ -46,7 +42,7 @@ export default async function ResumenPage() {
     supabase
       .from("payment_events")
       .select("amount")
-      .gte("completed_at", startOfMonthISO()),
+      .gte("completed_at", colombiaStartOfMonthISO()),
   ]);
 
   const spentThisMonth = (monthEvents ?? []).reduce((sum, e) => sum + (e.amount ?? 0), 0);

@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { nextDueDate, type Recurrence } from "@/lib/dates";
+import {
+  nextDueDate,
+  colombiaToday,
+  colombiaLocalToUtc,
+  daysUntil,
+  type Recurrence,
+} from "@/lib/dates";
 
 type Payment = {
   id: string;
@@ -25,24 +31,6 @@ type ReminderRule = {
 // How late a fire time is allowed to be and still go out - covers gaps
 // between cron runs (GitHub Actions schedules can lag under load).
 const CATCH_UP_WINDOW_MS = 90 * 60 * 1000;
-// Colombia is UTC-5 year-round (no DST).
-const COLOMBIA_OFFSET_MINUTES = 5 * 60;
-
-// UTC crosses into "tomorrow" 5 hours before Colombia does, so "today" for
-// day-counting and for building local time-of-day slots must be Colombia's
-// calendar date, not UTC's - otherwise every evening (~7pm-midnight
-// Colombia) reminders land a day off.
-function colombiaToday(now: Date): string {
-  return new Date(now.getTime() - COLOMBIA_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
-}
-
-function daysUntil(dueDate: string, todayStr: string): number {
-  const [ty, tm, td] = todayStr.split("-").map(Number);
-  const todayUtc = Date.UTC(ty, tm - 1, td);
-  const [year, month, day] = dueDate.split("-").map(Number);
-  const dueUtc = Date.UTC(year, month - 1, day);
-  return Math.round((dueUtc - todayUtc) / 86_400_000);
-}
 
 function subtractDays(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -51,12 +39,7 @@ function subtractDays(dateStr: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-// `dateStr` + `timeStr` are Colombia local time; returns the UTC instant.
-function localToUtc(dateStr: string, timeStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const [hh, mm] = timeStr.split(":").map(Number);
-  return new Date(Date.UTC(y, m - 1, d, hh, mm) + COLOMBIA_OFFSET_MINUTES * 60 * 1000);
-}
+const localToUtc = colombiaLocalToUtc;
 
 function formatAmount(payment: Payment): string {
   return payment.amount != null ? ` ($${Number(payment.amount).toLocaleString("es-CO")})` : "";
@@ -244,12 +227,18 @@ export async function GET(request: NextRequest) {
   }
 
   async function sendOnce(payment: Payment, kind: string, text: string): Promise<boolean> {
+    // Keyed on the Colombia calendar day it's sent, not just payment+kind+
+    // due_date - kinds like "overdue" and "gen-far" are meant to repeat
+    // once a day for as long as their window lasts, and due_date doesn't
+    // change while that's happening, so without sent_on in the key the
+    // first send would block every later day's send too.
     const { data: existing } = await supabase
       .from("notification_log")
       .select("id")
       .eq("payment_id", payment.id)
       .eq("kind", kind)
       .eq("due_date", payment.due_date)
+      .eq("sent_on", todayStr)
       .maybeSingle();
     if (existing) return false;
 
@@ -262,6 +251,7 @@ export async function GET(request: NextRequest) {
       user_id: payment.user_id,
       kind,
       due_date: payment.due_date,
+      sent_on: todayStr,
     });
     return true;
   }

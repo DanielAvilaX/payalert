@@ -5,11 +5,7 @@ import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { PaymentRow } from "@/app/dashboard/payment-row";
 import { StatCards } from "@/app/dashboard/stat-cards";
 import { Greeting } from "@/app/dashboard/greeting";
-
-function startOfMonthISO(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-}
+import { colombiaToday, colombiaStartOfMonthISO, daysUntil } from "@/lib/dates";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -28,14 +24,13 @@ export default async function DashboardPage() {
       supabase
         .from("payment_events")
         .select("id", { count: "exact", head: true })
-        .gte("completed_at", startOfMonthISO()),
+        .gte("completed_at", colombiaStartOfMonthISO()),
     ]);
 
   const unpaid = (payments ?? []).filter((p) => !p.is_paid);
 
-  const inSevenDays = new Date();
-  inSevenDays.setUTCDate(inSevenDays.getUTCDate() + 7);
-  const upcomingCount = unpaid.filter((p) => new Date(p.due_date) <= inSevenDays).length;
+  const todayStr = colombiaToday();
+  const upcomingCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) <= 7).length;
 
   const monthlyTotal = (payments ?? [])
     .filter((p) => p.recurrence === "monthly")
