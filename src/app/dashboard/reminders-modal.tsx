@@ -65,7 +65,7 @@ export function RemindersModal({
       onClick={onClose}
     >
       <div
-        className="animate-pop-in w-full max-w-md rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl"
+        className="animate-pop-in scrollbar-glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

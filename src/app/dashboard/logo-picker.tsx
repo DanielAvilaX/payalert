@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { LOGO_OPTIONS, logoConfig, type LogoId } from "@/lib/logos";
+
+type Rect = { top: number; left: number; width: number };
 
 function LogoThumb({ id, size }: { id: LogoId; size: number }) {
   const cfg = logoConfig(id);
@@ -40,21 +43,44 @@ export function LogoPicker({
   onChange: (id: LogoId) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<Rect | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const current = logoConfig(value);
 
+  // The panel is portalled to <body> so it isn't clipped by a scrollable
+  // modal ancestor (e.g. the "Nuevo pago" modal) - its position has to be
+  // tracked manually instead of relying on CSS `absolute`.
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+
+    function updateRect() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 288) });
     }
+    updateRect();
+
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("resize", updateRect);
+      window.removeEventListener("scroll", updateRect, true);
+    };
+  }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={triggerRef}>
       <input type="hidden" name={name} value={value} />
       <button
         type="button"
@@ -66,26 +92,33 @@ export function LogoPicker({
         <ChevronDown size={14} className="ml-auto shrink-0 text-muted" />
       </button>
 
-      {open && (
-        <div className="glass-panel absolute z-20 mt-2 flex max-h-72 w-full min-w-[18rem] flex-col gap-1 overflow-y-auto rounded-lg p-2 shadow-xl animate-pop-in">
-          {LOGO_OPTIONS.map(([id, cfg]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                onChange(id);
-                setOpen(false);
-              }}
-              className={`flex items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 active:scale-95 ${
-                id === value ? "ring-2 ring-accent" : ""
-              }`}
-            >
-              <LogoThumb id={id} size={32} />
-              <span className="min-w-0 flex-1 break-words text-sm text-muted">{cfg.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        rect &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width }}
+            className="glass-panel z-[200] flex max-h-72 flex-col gap-1 overflow-y-auto rounded-lg p-2 shadow-xl animate-pop-in"
+          >
+            {LOGO_OPTIONS.map(([id, cfg]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  onChange(id);
+                  setOpen(false);
+                }}
+                className={`flex items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 active:scale-95 ${
+                  id === value ? "ring-2 ring-accent" : ""
+                }`}
+              >
+                <LogoThumb id={id} size={32} />
+                <span className="min-w-0 flex-1 break-words text-sm text-muted">{cfg.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
