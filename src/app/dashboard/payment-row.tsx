@@ -250,6 +250,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
               type="number"
               min={0}
               defaultValue={payment.remind_days_before}
+              required
               className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
             />
             días antes

@@ -34,6 +34,7 @@ export function ReminderRuleFields({
             type="number"
             min={0}
             defaultValue={defaultDays}
+            required
             className={ruleInputClass}
           />
         </div>

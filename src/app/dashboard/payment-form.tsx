@@ -173,6 +173,7 @@ export function PaymentForm({
           type="number"
           min={0}
           defaultValue={defaultRemindDaysBefore}
+          required
           className="glass-input w-16 rounded-lg px-2 py-1 text-foreground"
         />
         días antes

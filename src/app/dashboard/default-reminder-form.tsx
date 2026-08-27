@@ -20,6 +20,7 @@ export function DefaultReminderForm({ defaultValue }: { defaultValue: number }) 
           type="number"
           min={0}
           defaultValue={defaultValue}
+          required
           className="glass-input w-20 rounded-lg px-2 py-1.5 text-foreground"
         />
         días antes, por defecto en pagos nuevos

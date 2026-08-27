@@ -13,6 +13,14 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   const [link, setLink] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  function handleGenerate() {
+    startTransition(async () => {
+      const token = await generateTelegramLinkToken();
+      const username = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+      setLink(`https://t.me/${username}?start=${token}`);
+    });
+  }
+
   if (connected) {
     return (
       <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
@@ -66,26 +74,30 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
       </div>
 
       {link ? (
-        <a
-          href={link}
-          target="_blank"
-          rel="noreferrer"
-          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95"
-        >
-          <ExternalLink size={16} />
-          Abrir en Telegram
-        </a>
+        <div className="flex shrink-0 flex-col items-center gap-2 sm:items-end">
+          <a
+            href={link}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 sm:w-auto"
+          >
+            <ExternalLink size={16} />
+            Abrir en Telegram
+          </a>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={handleGenerate}
+            className="text-xs text-muted underline transition hover:text-foreground disabled:opacity-50"
+          >
+            {pending ? "Generando..." : "El enlace expiró, generar uno nuevo"}
+          </button>
+        </div>
       ) : (
         <button
           type="button"
           disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const token = await generateTelegramLinkToken();
-              const username = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
-              setLink(`https://t.me/${username}?start=${token}`);
-            })
-          }
+          onClick={handleGenerate}
           className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
         >
           {pending ? <Spinner /> : <Link2 size={16} />}
