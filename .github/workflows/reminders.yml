@@ -7,7 +7,10 @@ name: Payment reminders
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Offset from the hour/half-hour marks (7, 22, 37, 52 instead of
+    # 0/15/30/45) - GitHub's own scheduling docs note runs queued right at
+    # those marks are the most likely to be delayed under load.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch: {}
 
 jobs:

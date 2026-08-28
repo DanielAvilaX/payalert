@@ -29,8 +29,14 @@ type ReminderRule = {
 };
 
 // How late a fire time is allowed to be and still go out - covers gaps
-// between cron runs (GitHub Actions schedules can lag under load).
-const CATCH_UP_WINDOW_MS = 90 * 60 * 1000;
+// between cron runs. GitHub Actions' `schedule` trigger is best-effort and
+// can lag for hours under load (observed gaps over 11h in practice), so
+// this is intentionally generous rather than tuned to the nominal 15-minute
+// cadence. It's safe to be generous: `fireAt` is always built from *today's*
+// slot times (recomputed fresh each run from the current date), so a stale
+// run can never reach back and fire yesterday's schedule - the window just
+// controls how late in the same day a delayed send is still allowed to go.
+const CATCH_UP_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 function subtractDays(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
