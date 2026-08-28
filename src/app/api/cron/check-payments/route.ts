@@ -103,21 +103,22 @@ function ruleMessage(payment: Payment, rule: ReminderRule, fireAt: Date): string
 //
 // Without custom rules, reminders still escalate on their own: starting at
 // `remind_days_before`, once a day, getting more frequent and more urgent
-// as the due date gets closer. The due day itself is always a single,
-// fixed-tone notice (no escalation within that day) - overdue is handled
+// as the due date gets closer. The due day itself is the most urgent of
+// all, so it repeats the same fixed-tone notice every 2 hours from 8am to
+// 8pm instead of escalating the wording further - overdue is handled
 // separately below and keeps repeating once a day until paid.
+
+const DUE_DAY_TIMES = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
 type GeneralSlot = { time: string; kind: string; text: (payment: Payment, remaining: number) => string };
 
 function generalSchedule(remaining: number): GeneralSlot[] {
   if (remaining === 0) {
-    return [
-      {
-        time: "09:00",
-        kind: "gen-0",
-        text: (p) => `📅 <b>${p.name}</b>${formatAmount(p)} vence HOY.`,
-      },
-    ];
+    return DUE_DAY_TIMES.map((time, i) => ({
+      time,
+      kind: `gen-0-${i}`,
+      text: (p) => `🚨 <b>${p.name}</b>${formatAmount(p)} vence HOY. ¡No lo dejes pasar!`,
+    }));
   }
 
   if (remaining === 1) {
