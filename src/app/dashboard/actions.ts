@@ -15,17 +15,19 @@ export type { Recurrence };
 export type ActionState = { error?: string } | undefined;
 
 // The date fields collected depend on how often the payment repeats:
-// monthly -> just a day-of-month, yearly -> day + month, weekly -> day of
-// the week, único -> a full date. Whichever isn't relevant isn't asked for.
+// monthly -> just a day-of-month (unambiguous: this month or next), yearly
+// -> day + month, weekly -> day of the week. Bimonthly/quarterly/semiannual
+// can't work off a bare day-of-month the way monthly does - day 30 could be
+// this month, next month, or the one after, depending on which one actually
+// starts the user's billing cycle - so, like único, they collect a full
+// date (the next charge) and just step forward by their own month count
+// from there.
 function resolveDueDate(
   formData: FormData,
   recurrence: Recurrence
 ): { dueDate: string } | { error: string } {
   switch (recurrence) {
-    case "monthly":
-    case "bimonthly":
-    case "quarterly":
-    case "semiannual": {
+    case "monthly": {
       const dayOfMonth = Number(formData.get("day_of_month") ?? "");
       if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
         return { error: "Día del mes inválido" };

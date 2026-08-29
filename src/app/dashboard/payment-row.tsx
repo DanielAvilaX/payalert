@@ -16,7 +16,7 @@ import {
   RECURRENCE_OPTIONS,
   WEEKDAY_OPTIONS,
   MONTH_OPTIONS,
-  MONTHLY_LIKE_RECURRENCES,
+  FULL_DATE_RECURRENCES,
 } from "@/app/dashboard/recurrence-options";
 
 const RECURRENCE_LABEL: Record<string, string> = {
@@ -191,9 +191,13 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm text-muted">Fecha de pago</label>
+            <label className="text-sm text-muted">
+              {FULL_DATE_RECURRENCES.has(recurrence) && recurrence !== "none"
+                ? "Fecha del próximo cobro"
+                : "Fecha de pago"}
+            </label>
 
-            {MONTHLY_LIKE_RECURRENCES.has(recurrence) && (
+            {recurrence === "monthly" && (
               <input
                 name="day_of_month"
                 type="number"
@@ -240,7 +244,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
               />
             )}
 
-            {recurrence === "none" && (
+            {FULL_DATE_RECURRENCES.has(recurrence) && (
               <input
                 name="due_date"
                 type="date"

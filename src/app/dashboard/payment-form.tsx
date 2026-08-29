@@ -12,7 +12,7 @@ import {
   RECURRENCE_OPTIONS,
   WEEKDAY_OPTIONS,
   MONTH_OPTIONS,
-  MONTHLY_LIKE_RECURRENCES,
+  FULL_DATE_RECURRENCES,
 } from "@/app/dashboard/recurrence-options";
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
@@ -118,9 +118,13 @@ export function PaymentForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>Fecha de pago</label>
+          <label className={labelClass}>
+            {FULL_DATE_RECURRENCES.has(recurrence) && recurrence !== "none"
+              ? "Fecha del próximo cobro"
+              : "Fecha de pago"}
+          </label>
 
-          {MONTHLY_LIKE_RECURRENCES.has(recurrence) && (
+          {recurrence === "monthly" && (
             <input
               name="day_of_month"
               type="number"
@@ -165,7 +169,7 @@ export function PaymentForm({
             />
           )}
 
-          {recurrence === "none" && (
+          {FULL_DATE_RECURRENCES.has(recurrence) && (
             <input name="due_date" type="date" required className={inputClass} />
           )}
         </div>

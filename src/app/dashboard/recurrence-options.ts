@@ -8,9 +8,12 @@ export const RECURRENCE_OPTIONS = [
   { value: "yearly", label: "Anual" },
 ];
 
-// These all collect the same "day of month" field as "monthly" - they only
-// differ in how many months nextDueDate() advances by on rollover.
-export const MONTHLY_LIKE_RECURRENCES = new Set(["monthly", "bimonthly", "quarterly", "semiannual"]);
+// Multi-month recurrences can't be pinned down from a bare day-of-month the
+// way "monthly" can - day 30 could mean this month, next month, or the one
+// after, depending on which one actually starts the user's billing cycle.
+// They collect a full date (the next charge date) instead, same as "none",
+// and only differ in how many months nextDueDate() advances by from there.
+export const FULL_DATE_RECURRENCES = new Set(["none", "bimonthly", "quarterly", "semiannual"]);
 
 export const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
