@@ -13,6 +13,11 @@ const NAV_ITEMS = [
 export function SidebarNav() {
   const pathname = usePathname();
 
+  // prefetch={false}: these routes are fully dynamic (fresh cookies + a
+  // Supabase read on every hit) - Next.js's default hover/viewport
+  // prefetch was firing a real server render for all three on every page
+  // view, and those requests could hang, holding the browser's load
+  // indicator for over a minute with nothing to show for it.
   return (
     <nav className="flex flex-col gap-1">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -21,6 +26,7 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition active:scale-95 ${
               active
                 ? "bg-accent/10 font-medium text-accent"

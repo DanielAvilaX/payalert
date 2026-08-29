@@ -13,6 +13,8 @@ const NAV_ITEMS = [
 export function MobileNav() {
   const pathname = usePathname();
 
+  // prefetch={false} - see sidebar-nav.tsx: these routes are fully dynamic,
+  // so the default prefetch just fired an extra hanging server render.
   return (
     <nav className="glass-panel fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around px-2 py-2 md:hidden">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -21,6 +23,7 @@ export function MobileNav() {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className={`flex flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-xs transition active:scale-95 ${
               active ? "text-accent" : "text-muted"
             }`}
