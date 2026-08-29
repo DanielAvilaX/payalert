@@ -2,8 +2,15 @@ export const RECURRENCE_OPTIONS = [
   { value: "none", label: "Único" },
   { value: "weekly", label: "Semanal" },
   { value: "monthly", label: "Mensual" },
+  { value: "bimonthly", label: "Bimensual" },
+  { value: "quarterly", label: "Trimestral" },
+  { value: "semiannual", label: "Semestral" },
   { value: "yearly", label: "Anual" },
 ];
+
+// These all collect the same "day of month" field as "monthly" - they only
+// differ in how many months nextDueDate() advances by on rollover.
+export const MONTHLY_LIKE_RECURRENCES = new Set(["monthly", "bimonthly", "quarterly", "semiannual"]);
 
 export const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },

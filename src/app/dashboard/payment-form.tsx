@@ -8,7 +8,12 @@ import { detectLogo, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
-import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS, MONTH_OPTIONS } from "@/app/dashboard/recurrence-options";
+import {
+  RECURRENCE_OPTIONS,
+  WEEKDAY_OPTIONS,
+  MONTH_OPTIONS,
+  MONTHLY_LIKE_RECURRENCES,
+} from "@/app/dashboard/recurrence-options";
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 const labelClass = "text-sm text-muted";
@@ -115,7 +120,7 @@ export function PaymentForm({
         <div className="flex flex-col gap-1">
           <label className={labelClass}>Fecha de pago</label>
 
-          {recurrence === "monthly" && (
+          {MONTHLY_LIKE_RECURRENCES.has(recurrence) && (
             <input
               name="day_of_month"
               type="number"

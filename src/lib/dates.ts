@@ -1,4 +1,11 @@
-export type Recurrence = "none" | "weekly" | "monthly" | "yearly";
+export type Recurrence =
+  | "none"
+  | "weekly"
+  | "monthly"
+  | "bimonthly"
+  | "quarterly"
+  | "semiannual"
+  | "yearly";
 
 // Colombia is UTC-5 year-round (no DST). Serverless functions run in UTC,
 // so any "today"/calendar-boundary math that matters to a Colombian user
@@ -61,6 +68,12 @@ export function nextDueDate(dueDate: string, recurrence: Recurrence): string {
     }
     case "monthly":
       return addMonthsClamped(year, month - 1, day, 1);
+    case "bimonthly":
+      return addMonthsClamped(year, month - 1, day, 2);
+    case "quarterly":
+      return addMonthsClamped(year, month - 1, day, 3);
+    case "semiannual":
+      return addMonthsClamped(year, month - 1, day, 6);
     case "yearly":
       return addMonthsClamped(year, month - 1, day, 12);
     default:

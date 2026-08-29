@@ -32,9 +32,18 @@ export default async function DashboardPage() {
   const todayStr = colombiaToday();
   const upcomingCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) <= 7).length;
 
-  const monthlyTotal = (payments ?? [])
-    .filter((p) => p.recurrence === "monthly")
-    .reduce((sum, p) => sum + (p.amount ?? 0), 0);
+  // Approximate monthly-equivalent spend: a bimonthly/quarterly/semiannual
+  // payment counts as its amount divided by how many months it spans.
+  const MONTHLY_EQUIVALENT_DIVISOR: Record<string, number> = {
+    monthly: 1,
+    bimonthly: 2,
+    quarterly: 3,
+    semiannual: 6,
+  };
+  const monthlyTotal = (payments ?? []).reduce((sum, p) => {
+    const divisor = MONTHLY_EQUIVALENT_DIVISOR[p.recurrence];
+    return divisor ? sum + (p.amount ?? 0) / divisor : sum;
+  }, 0);
 
   const activeReminders = telegramConnection ? unpaid.length : 0;
 

@@ -22,7 +22,10 @@ function resolveDueDate(
   recurrence: Recurrence
 ): { dueDate: string } | { error: string } {
   switch (recurrence) {
-    case "monthly": {
+    case "monthly":
+    case "bimonthly":
+    case "quarterly":
+    case "semiannual": {
       const dayOfMonth = Number(formData.get("day_of_month") ?? "");
       if (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31) {
         return { error: "Día del mes inválido" };

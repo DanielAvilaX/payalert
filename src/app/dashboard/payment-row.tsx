@@ -12,12 +12,20 @@ import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
 import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
 import { useOpenReminders } from "@/app/dashboard/reminders-modal-context";
-import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS, MONTH_OPTIONS } from "@/app/dashboard/recurrence-options";
+import {
+  RECURRENCE_OPTIONS,
+  WEEKDAY_OPTIONS,
+  MONTH_OPTIONS,
+  MONTHLY_LIKE_RECURRENCES,
+} from "@/app/dashboard/recurrence-options";
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "Único",
   weekly: "Semanal",
   monthly: "Mensual",
+  bimonthly: "Bimensual",
+  quarterly: "Trimestral",
+  semiannual: "Semestral",
   yearly: "Anual",
 };
 
@@ -185,7 +193,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
           <div className="flex flex-col gap-1">
             <label className="text-sm text-muted">Fecha de pago</label>
 
-            {recurrence === "monthly" && (
+            {MONTHLY_LIKE_RECURRENCES.has(recurrence) && (
               <input
                 name="day_of_month"
                 type="number"
