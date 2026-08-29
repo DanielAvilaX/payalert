@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
     .from("payments")
     .select("id, due_date, recurrence")
     .eq("is_paid", true)
+    .eq("is_paused", false)
     .neq("recurrence", "none")
     .lt("due_date", todayStr);
 
@@ -200,7 +201,8 @@ export async function GET(request: NextRequest) {
   const { data: paymentsData, error } = await supabase
     .from("payments")
     .select("id, user_id, name, amount, currency, due_date, remind_days_before")
-    .eq("is_paid", false);
+    .eq("is_paid", false)
+    .eq("is_paused", false);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

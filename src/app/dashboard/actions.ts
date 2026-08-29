@@ -197,6 +197,23 @@ export async function unmarkPaid(id: string) {
   revalidatePath("/dashboard", "layout");
 }
 
+// Pausing freezes a payment entirely - no reminders, no recurring rollover
+// (see the cron route's is_paused filters) - without deleting it or losing
+// its history, for things like a gym membership on hold.
+export async function pausePayment(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("payments").update({ is_paused: true }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
+}
+
+export async function resumePayment(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("payments").update({ is_paused: false }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
+}
+
 export async function generateTelegramLinkToken(): Promise<string> {
   const supabase = await createClient();
   const {

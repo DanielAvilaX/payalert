@@ -67,14 +67,16 @@ export default async function ResumenPage() {
   }
   const breakdown = Array.from(byLogo.entries()).sort((a, b) => b[1].total - a[1].total);
 
-  const unpaid = (payments ?? []).filter((p) => !p.is_paid);
+  const unpaid = (payments ?? []).filter((p) => !p.is_paid && !p.is_paused);
   const todayStr = colombiaToday();
   const upcomingCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) <= 7).length;
 
-  const monthlyTotal = (payments ?? []).reduce((sum, p) => {
-    const divisor = MONTHLY_EQUIVALENT_DIVISOR[p.recurrence];
-    return divisor ? sum + (p.amount ?? 0) / divisor : sum;
-  }, 0);
+  const monthlyTotal = (payments ?? [])
+    .filter((p) => !p.is_paused)
+    .reduce((sum, p) => {
+      const divisor = MONTHLY_EQUIVALENT_DIVISOR[p.recurrence];
+      return divisor ? sum + (p.amount ?? 0) / divisor : sum;
+    }, 0);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
