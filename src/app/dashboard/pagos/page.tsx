@@ -27,7 +27,7 @@ export default async function PagosPage() {
         <AddPaymentModal defaultRemindDaysBefore={defaultDays} />
       </div>
 
-      <section className="flex min-h-0 flex-col gap-3">
+      <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-medium">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
             <Wallet size={18} />

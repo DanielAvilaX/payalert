@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { PaymentRow, type Payment } from "@/app/dashboard/payment-row";
 
 type FilterKey = "all" | "pending" | "paid";
@@ -13,9 +13,12 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "paid", label: "Pagados" },
 ];
 
+const PAGE_SIZE = 10;
+
 export function PaymentsList({ payments }: { payments: Payment[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [page, setPage] = useState(1);
 
   const bySearch = query.trim()
     ? payments.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -33,8 +36,22 @@ export function PaymentsList({ payments }: { payments: Payment[] }) {
     return a.due_date.localeCompare(b.due_date);
   });
 
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Land back on page 1 whenever the search/filter changes, so it never
+  // leaves you stranded on a now-empty page. Adjusting state during render
+  // (rather than in an effect) avoids an extra render pass.
+  const filterKey = `${query}|${filter}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="relative">
         <Search
           size={15}
@@ -67,13 +84,41 @@ export function PaymentsList({ payments }: { payments: Payment[] }) {
       </div>
 
       {sorted.length ? (
-        <ul className="scrollbar-glass flex max-h-[42rem] flex-col gap-2 overflow-y-auto pr-1">
-          <AnimatePresence initial={false}>
-            {sorted.map((payment, i) => (
-              <PaymentRow key={payment.id} payment={payment} index={i} />
-            ))}
-          </AnimatePresence>
-        </ul>
+        <>
+          <ul className="flex flex-col gap-2">
+            <AnimatePresence initial={false}>
+              {pageItems.map((payment, i) => (
+                <PaymentRow key={payment.id} payment={payment} index={i} />
+              ))}
+            </AnimatePresence>
+          </ul>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                aria-label="Página anterior"
+                className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-40"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-xs text-muted">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                aria-label="Página siguiente"
+                className="rounded-lg p-2 text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-40"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <p className="text-sm text-muted">
           {query ? "Ningún pago coincide con tu búsqueda." : "No hay pagos en este filtro."}
