@@ -1,5 +1,6 @@
 import { Settings, Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { DefaultReminderForm } from "@/app/dashboard/default-reminder-form";
 import { RulesOverview, type RuleWithPayment } from "@/app/dashboard/rules-overview";
 
@@ -9,10 +10,17 @@ export default async function ConfiguracionPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: rules } = await supabase
-    .from("reminder_rules")
-    .select("*, payments(name, logo)")
-    .order("created_at", { ascending: false });
+  const [{ data: rules }, { data: telegramConnection }] = await Promise.all([
+    supabase
+      .from("reminder_rules")
+      .select("*, payments(name, logo)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("telegram_connections")
+      .select("user_id")
+      .eq("user_id", user!.id)
+      .maybeSingle(),
+  ]);
 
   const defaultDays =
     (user?.user_metadata?.default_remind_days_before as number | undefined) ?? 3;
@@ -25,6 +33,8 @@ export default async function ConfiguracionPage() {
           Preferencias generales y reglas personalizadas de recordatorios.
         </p>
       </div>
+
+      <TelegramConnect connected={!!telegramConnection} />
 
       <section className="glass-panel animate-pop-in rounded-2xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium">

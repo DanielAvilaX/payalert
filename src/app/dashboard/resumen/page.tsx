@@ -2,7 +2,17 @@ import Image from "next/image";
 import { PieChart, History, TrendingUp } from "lucide-react";
 import { logoConfig } from "@/lib/logos";
 import { createClient } from "@/lib/supabase/server";
-import { colombiaStartOfMonthISO } from "@/lib/dates";
+import { colombiaToday, colombiaStartOfMonthISO, daysUntil } from "@/lib/dates";
+import { StatCards } from "@/app/dashboard/stat-cards";
+
+// Approximate monthly-equivalent spend: a bimonthly/quarterly/semiannual
+// payment counts as its amount divided by how many months it spans.
+const MONTHLY_EQUIVALENT_DIVISOR: Record<string, number> = {
+  monthly: 1,
+  bimonthly: 2,
+  quarterly: 3,
+  semiannual: 6,
+};
 
 function LogoIcon({ logo, size = 40 }: { logo: string | null; size?: number }) {
   const cfg = logoConfig(logo);
@@ -57,12 +67,23 @@ export default async function ResumenPage() {
   }
   const breakdown = Array.from(byLogo.entries()).sort((a, b) => b[1].total - a[1].total);
 
+  const unpaid = (payments ?? []).filter((p) => !p.is_paid);
+  const todayStr = colombiaToday();
+  const upcomingCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) <= 7).length;
+
+  const monthlyTotal = (payments ?? []).reduce((sum, p) => {
+    const divisor = MONTHLY_EQUIVALENT_DIVISOR[p.recurrence];
+    return divisor ? sum + (p.amount ?? 0) / divisor : sum;
+  }, 0);
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold">Resumen</h1>
         <p className="text-sm text-muted">Un vistazo más detallado a tus pagos.</p>
       </div>
+
+      <StatCards upcomingCount={upcomingCount} monthlyTotal={monthlyTotal} />
 
       <div className="glass-panel animate-pop-in flex items-center gap-5 rounded-2xl p-6">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg">

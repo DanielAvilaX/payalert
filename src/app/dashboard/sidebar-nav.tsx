@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, BarChart3, Settings } from "lucide-react";
+import { Wallet, BarChart3, Settings } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/pagos", label: "Tus pagos", icon: Wallet },
   { href: "/dashboard/resumen", label: "Resumen", icon: BarChart3 },
   { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },

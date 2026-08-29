@@ -1,4 +1,4 @@
-import { Wallet, Calendar, Bell, BarChart3, type LucideIcon } from "lucide-react";
+import { Wallet, Calendar, type LucideIcon } from "lucide-react";
 
 type Stat = {
   label: string;
@@ -11,13 +11,9 @@ type Stat = {
 export function StatCards({
   upcomingCount,
   monthlyTotal,
-  activeReminders,
-  completedThisMonth,
 }: {
   upcomingCount: number;
   monthlyTotal: number;
-  activeReminders: number;
-  completedThisMonth: number;
 }) {
   const stats: Stat[] = [
     {
@@ -34,24 +30,10 @@ export function StatCards({
       icon: Calendar,
       bg: "bg-amber-500",
     },
-    {
-      label: "Recordatorios",
-      value: String(activeReminders),
-      hint: "En Telegram",
-      icon: Bell,
-      bg: "bg-blue-500",
-    },
-    {
-      label: "Completados",
-      value: String(completedThisMonth),
-      hint: "Este mes",
-      icon: BarChart3,
-      bg: "bg-violet-500",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {stats.map(({ label, value, hint, icon: Icon, bg }, i) => (
         <div
           key={label}
