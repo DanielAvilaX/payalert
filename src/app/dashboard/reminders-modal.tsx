@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
-import { Bell, Plus, X } from "lucide-react";
+import { Bell, Plus } from "lucide-react";
+import { ModalShell } from "@/app/dashboard/modal-shell";
+import { useToast } from "@/app/dashboard/toast-context";
 import {
   listReminderRules,
   addReminderRule,
@@ -34,6 +36,7 @@ export function RemindersModal({
   const [repeats, setRepeats] = useState(false);
   const loading = loadedFor !== paymentId;
   const logo = logoConfig(paymentLogo);
+  const toast = useToast();
 
   useEffect(() => {
     if (!open) return;
@@ -42,8 +45,6 @@ export function RemindersModal({
       setLoadedFor(paymentId);
     });
   }, [open, paymentId]);
-
-  if (!open) return null;
 
   function handleAdd(formData: FormData) {
     setError(null);
@@ -56,50 +57,39 @@ export function RemindersModal({
       const updated = await listReminderRules(paymentId);
       setRules(updated);
       setRepeats(false);
+      toast("Regla agregada");
     });
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="animate-pop-in scrollbar-glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            {logo.icon ? (
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10">
-                <logo.icon size={20} />
-              </div>
-            ) : (
-              <Image
-                src={logo.src!}
-                alt=""
-                width={44}
-                height={44}
-                className="h-11 w-11 shrink-0 rounded-full object-cover"
-              />
-            )}
-            <div className="min-w-0">
-              <h2 className="flex items-center gap-1.5 font-medium">
-                <Bell size={15} className="shrink-0 text-accent" />
-                Recordatorios
-              </h2>
-              <p className="text-sm text-muted break-words">{paymentName}</p>
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      titleSlot={
+        <div className="flex min-w-0 items-center gap-3">
+          {logo.icon ? (
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10">
+              <logo.icon size={20} />
             </div>
+          ) : (
+            <Image
+              src={logo.src!}
+              alt=""
+              width={44}
+              height={44}
+              className="h-11 w-11 shrink-0 rounded-full object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-1.5 font-medium">
+              <Bell size={15} className="shrink-0 text-accent" />
+              Recordatorios
+            </h2>
+            <p className="text-sm text-muted break-words">{paymentName}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-lg p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground"
-          >
-            <X size={18} />
-          </button>
         </div>
-
+      }
+    >
         <p className="mb-4 text-xs text-muted">
           Sin reglas personalizadas se usa el aviso simple (&quot;avisar X días antes&quot;).
           Agrega reglas para escalar la urgencia como quieras - por ejemplo un aviso el lunes
@@ -142,7 +132,6 @@ export function RemindersModal({
             Agregar regla
           </button>
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

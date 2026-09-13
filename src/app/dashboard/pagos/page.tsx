@@ -2,6 +2,7 @@ import { Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PaymentsList } from "@/app/dashboard/payments-list";
 import { AddPaymentModal } from "@/app/dashboard/add-payment-modal";
+import { colombiaToday } from "@/lib/dates";
 
 export default async function PagosPage() {
   const supabase = await createClient();
@@ -34,7 +35,7 @@ export default async function PagosPage() {
           </span>
           Tus pagos
         </h2>
-        <PaymentsList payments={payments ?? []} />
+        <PaymentsList payments={payments ?? []} todayStr={colombiaToday()} />
       </section>
     </div>
   );

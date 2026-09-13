@@ -15,7 +15,13 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 const PAGE_SIZE = 10;
 
-export function PaymentsList({ payments }: { payments: Payment[] }) {
+export function PaymentsList({
+  payments,
+  todayStr,
+}: {
+  payments: Payment[];
+  todayStr: string;
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [page, setPage] = useState(1);
@@ -88,7 +94,12 @@ export function PaymentsList({ payments }: { payments: Payment[] }) {
           <ul className="flex flex-col gap-2">
             <AnimatePresence initial={false}>
               {pageItems.map((payment, i) => (
-                <PaymentRow key={payment.id} payment={payment} index={i} />
+                <PaymentRow
+                  key={payment.id}
+                  payment={payment}
+                  index={i}
+                  todayStr={todayStr}
+                />
               ))}
             </AnimatePresence>
           </ul>
@@ -120,9 +131,22 @@ export function PaymentsList({ payments }: { payments: Payment[] }) {
           )}
         </>
       ) : (
-        <p className="text-sm text-muted">
-          {query ? "Ningún pago coincide con tu búsqueda." : "No hay pagos en este filtro."}
-        </p>
+        <div className="glass-panel flex flex-col items-center gap-2 rounded-2xl px-6 py-10 text-center">
+          <p className="text-sm">
+            {query
+              ? `Ningún pago coincide con "${query.trim()}".`
+              : payments.length === 0
+                ? "Todavía no tienes pagos registrados."
+                : "No hay pagos en este filtro."}
+          </p>
+          <p className="text-xs text-muted">
+            {query
+              ? "Prueba con otra palabra o revisa los filtros."
+              : payments.length === 0
+                ? 'Usa "Agregar pago" para registrar el primero y empezar a recibir avisos en Telegram.'
+                : "Cambia de filtro para ver el resto."}
+          </p>
+        </div>
       )}
     </div>
   );

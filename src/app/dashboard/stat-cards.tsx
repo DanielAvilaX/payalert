@@ -1,4 +1,4 @@
-import { Wallet, Calendar, type LucideIcon } from "lucide-react";
+import { Wallet, Calendar, AlertTriangle, type LucideIcon } from "lucide-react";
 
 type Stat = {
   label: string;
@@ -11,9 +11,11 @@ type Stat = {
 export function StatCards({
   upcomingCount,
   monthlyTotal,
+  overdueCount,
 }: {
   upcomingCount: number;
   monthlyTotal: number;
+  overdueCount: number;
 }) {
   const stats: Stat[] = [
     {
@@ -32,8 +34,25 @@ export function StatCards({
     },
   ];
 
+  // Only shown when there's something to act on. A card that reads "0
+  // vencidos" every day is noise, and noise is what makes people stop
+  // reading the ones that matter.
+  if (overdueCount > 0) {
+    stats.unshift({
+      label: "Vencidos",
+      value: String(overdueCount),
+      hint: overdueCount === 1 ? "Sin marcar como pagado" : "Sin marcar como pagados",
+      icon: AlertTriangle,
+      bg: "bg-red-500",
+    });
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div
+      className={`grid grid-cols-1 gap-4 ${
+        stats.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+      }`}
+    >
       {stats.map(({ label, value, hint, icon: Icon, bg }, i) => (
         <div
           key={label}

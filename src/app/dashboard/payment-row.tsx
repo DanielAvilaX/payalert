@@ -20,6 +20,8 @@ import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
 import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
 import { useOpenReminders } from "@/app/dashboard/reminders-modal-context";
+import { useToast } from "@/app/dashboard/toast-context";
+import { describeDue, formatDueDate, TONE_BADGE, TONE_EDGE } from "@/lib/payment-status";
 import {
   RECURRENCE_OPTIONS,
   WEEKDAY_OPTIONS,
@@ -94,7 +96,16 @@ function LogoBadge({ logo, automatic }: { logo: string | null; automatic?: boole
   );
 }
 
-export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: number }) {
+export function PaymentRow({
+  payment,
+  index = 0,
+  todayStr,
+}: {
+  payment: Payment;
+  index?: number;
+  /** Colombia's calendar date, resolved once per request on the server. */
+  todayStr: string;
+}) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -108,61 +119,32 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
   const [weekday, setWeekday] = useState(initialParts.weekday);
   const confirmDelete = useConfirmDelete();
   const openReminders = useOpenReminders();
+  const toast = useToast();
 
-  function handleDelete() {
+  /** Every row action is the same shape: run it, confirm it, or explain it. */
+  function run(action: () => Promise<void>, successText: string, failText: string) {
     setError(null);
     startTransition(async () => {
       try {
-        await deletePayment(payment.id);
+        await action();
+        toast(successText);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo eliminar");
+        setError(e instanceof Error ? e.message : failText);
+        toast(failText, "error");
       }
     });
   }
 
-  function handleMarkPaid() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await markPaid(payment.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo actualizar");
-      }
-    });
-  }
-
-  function handleUnmarkPaid() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await unmarkPaid(payment.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo actualizar");
-      }
-    });
-  }
-
-  function handlePause() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await pausePayment(payment.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo pausar");
-      }
-    });
-  }
-
-  function handleResume() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await resumePayment(payment.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo reanudar");
-      }
-    });
-  }
+  const handleDelete = () =>
+    run(() => deletePayment(payment.id), "Pago eliminado", "No se pudo eliminar");
+  const handleMarkPaid = () =>
+    run(() => markPaid(payment.id), "Marcado como pagado", "No se pudo actualizar");
+  const handleUnmarkPaid = () =>
+    run(() => unmarkPaid(payment.id), "Marcado como pendiente", "No se pudo actualizar");
+  const handlePause = () =>
+    run(() => pausePayment(payment.id), "Pago pausado", "No se pudo pausar");
+  const handleResume = () =>
+    run(() => resumePayment(payment.id), "Pago reanudado", "No se pudo reanudar");
 
   function handleSave(formData: FormData) {
     setError(null);
@@ -170,9 +152,10 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
       const result = await updatePayment(payment.id, formData);
       if (result?.error) {
         setError(result.error);
-      } else {
-        setEditing(false);
+        return;
       }
+      setEditing(false);
+      toast("Cambios guardados");
     });
   }
 
@@ -182,6 +165,22 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     exit: { opacity: 0, scale: 0.9 },
     transition: { ...springTransition, delay: index * 0.04 },
   };
+
+  // Paused and paid outrank urgency: a bill that's settled or on hold
+  // shouldn't be shouting a due date at you.
+  const due = describeDue(payment.due_date, todayStr);
+  const statusLabel = payment.is_paused
+    ? "Pausado"
+    : payment.is_paid
+      ? "Pagado"
+      : due.label;
+  const statusBadge = payment.is_paused
+    ? "bg-white/5 text-muted"
+    : payment.is_paid
+      ? "bg-emerald-500/15 text-emerald-300"
+      : TONE_BADGE[due.tone];
+  const edgeClass =
+    payment.is_paused || payment.is_paid ? "before:bg-transparent" : TONE_EDGE[due.tone];
 
   if (editing) {
     return (
@@ -339,7 +338,7 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
     <motion.li
       layout
       {...entrance}
-      className={`glass-panel flex flex-col gap-3 rounded-2xl p-4 transition-colors sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-3 sm:gap-y-2 ${
+      className={`glass-panel relative flex flex-col gap-3 overflow-hidden rounded-2xl p-4 pl-5 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-3 sm:gap-y-2 ${edgeClass} ${
         payment.is_paused
           ? "opacity-60"
           : payment.is_paid
@@ -350,15 +349,14 @@ export function PaymentRow({ payment, index = 0 }: { payment: Payment; index?: n
       <div className="flex min-w-0 items-center gap-3 sm:flex-1">
         <LogoBadge logo={payment.logo} automatic={payment.is_automatic} />
         <div className="min-w-0">
-          <p className="font-medium break-words">
-            {payment.name}{" "}
-            {payment.is_paused && <span className="text-xs text-amber-400">(pausado)</span>}
-            {!payment.is_paused && payment.is_paid && (
-              <span className="text-xs text-emerald-400">(pagado)</span>
-            )}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="font-medium break-words">{payment.name}</p>
+            <span className={`rounded-md px-1.5 py-0.5 text-xs whitespace-nowrap ${statusBadge}`}>
+              {statusLabel}
+            </span>
+          </div>
           <p className="text-sm text-muted">
-            {payment.due_date} · {RECURRENCE_LABEL[payment.recurrence]}
+            {formatDueDate(payment.due_date)} · {RECURRENCE_LABEL[payment.recurrence]}
             {payment.amount != null &&
               ` · $${Number(payment.amount).toLocaleString("es-CO")}`}
           </p>

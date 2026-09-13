@@ -7,6 +7,7 @@ import { SidebarNav } from "@/app/dashboard/sidebar-nav";
 import { MobileNav } from "@/app/dashboard/mobile-nav";
 import { DeleteConfirmProvider } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModalProvider } from "@/app/dashboard/reminders-modal-context";
+import { ToastProvider } from "@/app/dashboard/toast-context";
 
 export default async function DashboardLayout({
   children,
@@ -29,8 +30,9 @@ export default async function DashboardLayout({
     .maybeSingle();
 
   return (
-    <DeleteConfirmProvider>
-      <RemindersModalProvider>
+    <ToastProvider>
+      <DeleteConfirmProvider>
+        <RemindersModalProvider>
         <div className="min-h-screen">
           <header className="glass-panel sticky top-0 z-30 flex items-center justify-between px-4 py-3 md:hidden">
             <div className="flex items-center gap-2">
@@ -89,7 +91,8 @@ export default async function DashboardLayout({
 
           <MobileNav />
         </div>
-      </RemindersModalProvider>
-    </DeleteConfirmProvider>
+        </RemindersModalProvider>
+      </DeleteConfirmProvider>
+    </ToastProvider>
   );
 }

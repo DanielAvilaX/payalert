@@ -10,6 +10,7 @@ import {
 import { describeReminderRule } from "@/lib/reminder-format";
 import { ReminderRuleFields } from "@/app/dashboard/reminder-rule-fields";
 import { Spinner } from "@/app/dashboard/spinner";
+import { useToast } from "@/app/dashboard/toast-context";
 
 export function ReminderRuleItem({
   rule,
@@ -23,11 +24,18 @@ export function ReminderRuleItem({
   const [repeats, setRepeats] = useState(!!rule.end_time);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   function handleDelete() {
     startTransition(async () => {
-      await deleteReminderRule(current.id);
-      onDeleted(current.id);
+      try {
+        await deleteReminderRule(current.id);
+        onDeleted(current.id);
+        toast("Regla eliminada");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo eliminar la regla");
+        toast("No se pudo eliminar la regla", "error");
+      }
     });
   }
 
@@ -37,10 +45,12 @@ export function ReminderRuleItem({
       const result = await updateReminderRule(current.id, formData);
       if (result.error) {
         setError(result.error);
+        toast(result.error, "error");
         return;
       }
       if (result.rule) setCurrent({ ...current, ...result.rule });
       setEditing(false);
+      toast("Regla actualizada");
     });
   }
 

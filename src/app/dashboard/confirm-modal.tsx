@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { ModalShell } from "@/app/dashboard/modal-shell";
 
 export function ConfirmModal({
   open,
@@ -19,39 +20,29 @@ export function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onCancel}
-    >
-      <div
-        className="animate-pop-in w-full max-w-sm rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-400">
-          <AlertTriangle size={24} />
-        </div>
-        <h2 className="mb-1 text-lg font-medium">{title}</h2>
-        <p className="mb-6 text-sm text-muted">{description}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 active:scale-95"
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <ModalShell open={open} onClose={onCancel} maxWidth="max-w-sm">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+        <AlertTriangle size={24} />
       </div>
-    </div>
+      <h2 className="mb-1 text-lg font-medium">{title}</h2>
+      <p className="mb-6 text-sm text-muted">{description}</p>
+      <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-4 py-2 text-sm text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+        >
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 active:scale-95"
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </ModalShell>
   );
 }

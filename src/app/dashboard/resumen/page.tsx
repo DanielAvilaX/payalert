@@ -3,6 +3,7 @@ import { PieChart, History, TrendingUp } from "lucide-react";
 import { logoConfig } from "@/lib/logos";
 import { createClient } from "@/lib/supabase/server";
 import { colombiaToday, colombiaStartOfMonthISO, daysUntil } from "@/lib/dates";
+import { formatDueDate, formatMonthName } from "@/lib/payment-status";
 import { StatCards } from "@/app/dashboard/stat-cards";
 
 // Approximate monthly-equivalent spend: a bimonthly/quarterly/semiannual
@@ -69,7 +70,11 @@ export default async function ResumenPage() {
 
   const unpaid = (payments ?? []).filter((p) => !p.is_paid && !p.is_paused);
   const todayStr = colombiaToday();
-  const upcomingCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) <= 7).length;
+  const overdueCount = unpaid.filter((p) => daysUntil(p.due_date, todayStr) < 0).length;
+  const upcomingCount = unpaid.filter((p) => {
+    const days = daysUntil(p.due_date, todayStr);
+    return days >= 0 && days <= 7;
+  }).length;
 
   const monthlyTotal = (payments ?? [])
     .filter((p) => !p.is_paused)
@@ -85,7 +90,11 @@ export default async function ResumenPage() {
         <p className="text-sm text-muted">Un vistazo más detallado a tus pagos.</p>
       </div>
 
-      <StatCards upcomingCount={upcomingCount} monthlyTotal={monthlyTotal} />
+      <StatCards
+        upcomingCount={upcomingCount}
+        monthlyTotal={monthlyTotal}
+        overdueCount={overdueCount}
+      />
 
       <div className="glass-panel animate-pop-in flex items-center gap-5 rounded-2xl p-6">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg">
@@ -97,8 +106,7 @@ export default async function ResumenPage() {
             ${spentThisMonth.toLocaleString("es-CO")}
           </p>
           <p className="text-xs text-muted">
-            Suma de los pagos marcados como pagados en{" "}
-            {new Date().toLocaleDateString("es-CO", { month: "long" })}
+            Suma de los pagos marcados como pagados en {formatMonthName(todayStr)}
           </p>
         </div>
       </div>
@@ -144,8 +152,12 @@ export default async function ResumenPage() {
                 <li key={event.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm break-words">{event.name}</p>
+                    {/* Rendered from Colombia's calendar rather than
+                        toLocaleDateString, which reads the *server's* zone
+                        here (UTC) and would show a payment completed at
+                        8pm local as having happened the following day. */}
                     <p className="text-xs text-muted">
-                      {new Date(event.completed_at).toLocaleDateString("es-CO")}
+                      {formatDueDate(colombiaToday(new Date(event.completed_at)), true)}
                     </p>
                   </div>
                   {event.amount != null && (
