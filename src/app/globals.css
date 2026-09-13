@@ -214,3 +214,61 @@ body {
 .loading-glow {
   animation: loading-glow 1.6s ease-in-out infinite;
 }
+
+/* --- Auth screens (login, signup, recovery) --------------------------- */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    /* "none", not translateY(0): with fill-mode both, any other transform
+       value stays applied after the animation and turns the element into a
+       containing block for its absolutely positioned descendants. */
+    transform: none;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+@keyframes blob {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -16px) scale(1.08);
+  }
+  66% {
+    transform: translate(-16px, 20px) scale(0.95);
+  }
+}
+
+.animate-blob {
+  animation: blob 14s ease-in-out infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+/* The node network is solid toward the outer edge and fades out toward the
+   footage panel, so the two effects never fight over the same pixels. */
+.login-net-mask {
+  mask-image: linear-gradient(to left, black 0%, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 0%, black 40%, transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Only the motion goes. Job Hunter's version also set opacity: 0 here,
+     which leaves the form card permanently invisible for anyone with
+     "reduce motion" switched on - not carried over. */
+  .animate-fade-in-up,
+  .animate-blob {
+    animation: none;
+  }
+}

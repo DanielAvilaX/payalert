@@ -2,75 +2,70 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { LogIn } from "lucide-react";
 import { login, type AuthState } from "@/app/actions/auth";
 import { Spinner } from "@/app/dashboard/spinner";
-
-const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
+import {
+  AuthShell,
+  authButtonClass,
+  authErrorClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+} from "@/app/_auth/auth-shell";
 
 export default function LoginPage() {
-  const [state, action, pending] = useActionState<AuthState, FormData>(
-    login,
-    undefined
-  );
+  const [state, action, pending] = useActionState<AuthState, FormData>(login, undefined);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
-      <div className="flex items-center gap-2">
-        <Image src="/logo.png" alt="" width={44} height={44} className="rounded-xl" />
-        <span className="text-lg font-semibold">PayAlert</span>
-      </div>
+    <AuthShell title="Bienvenido de nuevo" subtitle="Inicia sesión para ver tus pagos.">
+      <form action={action} className="space-y-4">
+        <div>
+          <label htmlFor="email" className={authLabelClass}>
+            Correo
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className={authInputClass}
+          />
+        </div>
 
-      <div className="glass-panel animate-pop-in w-full max-w-sm rounded-2xl p-7">
-        <h1 className="mb-6 text-xl font-semibold">Iniciar sesión</h1>
-
-        <form action={action} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="email" className="text-sm text-muted">
-              Email
-            </label>
-            <input id="email" name="email" type="email" required className={inputClass} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="password" className="text-sm text-muted">
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="password" className={authLabelClass}>
               Contraseña
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className={inputClass}
-            />
+            <Link href="/forgot-password" className="text-xs text-zinc-400 hover:text-zinc-200">
+              ¿La olvidaste?
+            </Link>
           </div>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            className={authInputClass}
+          />
+        </div>
 
-          {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+        {state?.error && <p className={authErrorClass}>{state.error}</p>}
 
-          <button
-            type="submit"
-            disabled={pending}
-            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
-          >
-            {pending ? <Spinner size={18} /> : <LogIn size={18} />}
-            {pending ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+        <button type="submit" disabled={pending} className={authButtonClass}>
+          {pending && <Spinner size={16} />}
+          {pending ? "Ingresando…" : "Ingresar"}
+        </button>
 
-        <p className="mt-4 text-sm">
-          <Link href="/forgot-password" className="text-muted hover:text-foreground hover:underline">
-            ¿Olvidaste tu contraseña?
-          </Link>
-        </p>
-
-        <p className="mt-2 text-sm text-muted">
+        <p className="text-center text-sm text-zinc-400">
           ¿No tienes cuenta?{" "}
-          <Link href="/signup" className="text-accent hover:underline">
+          <Link href="/signup" className={authLinkClass}>
             Regístrate
           </Link>
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   );
 }

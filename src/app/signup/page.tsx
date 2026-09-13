@@ -2,78 +2,83 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { UserPlus } from "lucide-react";
 import { signup, type AuthState } from "@/app/actions/auth";
 import { Spinner } from "@/app/dashboard/spinner";
-
-const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
+import {
+  AuthShell,
+  authButtonClass,
+  authErrorClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+  authNoticeClass,
+} from "@/app/_auth/auth-shell";
 
 export default function SignupPage() {
-  const [state, action, pending] = useActionState<AuthState, FormData>(
-    signup,
-    undefined
-  );
+  const [state, action, pending] = useActionState<AuthState, FormData>(signup, undefined);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
-      <div className="flex items-center gap-2">
-        <Image src="/logo.png" alt="" width={44} height={44} className="rounded-xl" />
-        <span className="text-lg font-semibold">PayAlert</span>
-      </div>
+    <AuthShell title="Crea tu cuenta" subtitle="Empieza a tener tus pagos bajo control.">
+      <form action={action} className="space-y-4">
+        <div>
+          <label htmlFor="name" className={authLabelClass}>
+            Nombre
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            className={authInputClass}
+          />
+        </div>
 
-      <div className="glass-panel animate-pop-in w-full max-w-sm rounded-2xl p-7">
-        <h1 className="mb-6 text-xl font-semibold">Crear cuenta</h1>
+        <div>
+          <label htmlFor="email" className={authLabelClass}>
+            Correo
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className={authInputClass}
+          />
+        </div>
 
-        <form action={action} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="name" className="text-sm text-muted">
-              Nombre
-            </label>
-            <input id="name" name="name" type="text" required className={inputClass} />
-          </div>
+        <div>
+          <label htmlFor="password" className={authLabelClass}>
+            Contraseña
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            className={authInputClass}
+          />
+          <p className="mt-1 text-xs text-zinc-500">Mínimo 8 caracteres.</p>
+        </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="email" className="text-sm text-muted">
-              Email
-            </label>
-            <input id="email" name="email" type="email" required className={inputClass} />
-          </div>
+        {state?.error && <p className={authErrorClass}>{state.error}</p>}
+        {state?.message && <p className={authNoticeClass}>{state.message}</p>}
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="password" className="text-sm text-muted">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              className={inputClass}
-            />
-          </div>
+        <button type="submit" disabled={pending} className={authButtonClass}>
+          {pending && <Spinner size={16} />}
+          {pending ? "Creando cuenta…" : "Crear cuenta"}
+        </button>
 
-          {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
-          {state?.message && <p className="text-sm text-accent">{state.message}</p>}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95 disabled:opacity-50"
-          >
-            {pending ? <Spinner size={18} /> : <UserPlus size={18} />}
-            {pending ? "Creando..." : "Crear cuenta"}
-          </button>
-        </form>
-
-        <p className="mt-4 text-sm text-muted">
+        <p className="text-center text-sm text-zinc-400">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className={authLinkClass}>
             Inicia sesión
           </Link>
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   );
 }
