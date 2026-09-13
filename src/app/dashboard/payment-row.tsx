@@ -3,7 +3,19 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Trash2, Pencil, CheckCircle2, RotateCcw, X, Bell, Zap, Pause, Play } from "lucide-react";
+import {
+  Trash2,
+  Pencil,
+  CheckCircle2,
+  RotateCcw,
+  X,
+  Bell,
+  Zap,
+  Pause,
+  Play,
+  StickyNote,
+  Link2,
+} from "lucide-react";
 import {
   deletePayment,
   markPaid,
@@ -21,6 +33,8 @@ import { Spinner } from "@/app/dashboard/spinner";
 import { useConfirmDelete } from "@/app/dashboard/delete-confirm-context";
 import { useOpenReminders } from "@/app/dashboard/reminders-modal-context";
 import { useToast } from "@/app/dashboard/toast-context";
+import { ModalShell } from "@/app/dashboard/modal-shell";
+import { PaymentExtraFields } from "@/app/dashboard/payment-extra-fields";
 import { describeDue, formatDueDate, TONE_BADGE, TONE_EDGE } from "@/lib/payment-status";
 import {
   RECURRENCE_OPTIONS,
@@ -51,6 +65,9 @@ export type Payment = {
   is_paid: boolean;
   is_automatic: boolean;
   is_paused: boolean;
+  amount_is_variable: boolean;
+  notes: string | null;
+  payment_url: string | null;
 };
 
 const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
@@ -117,6 +134,8 @@ export function PaymentRow({
   const initialParts = dateParts(payment.due_date);
   const [month, setMonth] = useState(initialParts.month);
   const [weekday, setWeekday] = useState(initialParts.weekday);
+  const [askingAmount, setAskingAmount] = useState(false);
+  const [actualAmount, setActualAmount] = useState("");
   const confirmDelete = useConfirmDelete();
   const openReminders = useOpenReminders();
   const toast = useToast();
@@ -137,8 +156,29 @@ export function PaymentRow({
 
   const handleDelete = () =>
     run(() => deletePayment(payment.id), "Pago eliminado", "No se pudo eliminar");
-  const handleMarkPaid = () =>
+
+  // A variable bill's stored amount is an estimate, so settling it without
+  // asking would quietly file a made-up number into the month's total. The
+  // prompt is pre-filled with the estimate, so confirming is still one tap.
+  function handleMarkPaid() {
+    if (payment.amount_is_variable) {
+      setActualAmount(
+        payment.amount != null ? `$${Number(payment.amount).toLocaleString("es-CO")}` : ""
+      );
+      setAskingAmount(true);
+      return;
+    }
     run(() => markPaid(payment.id), "Marcado como pagado", "No se pudo actualizar");
+  }
+
+  function confirmActualAmount() {
+    setAskingAmount(false);
+    run(
+      () => markPaid(payment.id, actualAmount),
+      "Marcado como pagado",
+      "No se pudo actualizar"
+    );
+  }
   const handleUnmarkPaid = () =>
     run(() => unmarkPaid(payment.id), "Marcado como pendiente", "No se pudo actualizar");
   const handlePause = () =>
@@ -309,6 +349,12 @@ export function PaymentRow({
             Pago automático (débito/domiciliación)
           </label>
 
+          <PaymentExtraFields
+            defaultVariable={payment.amount_is_variable}
+            defaultNotes={payment.notes ?? ""}
+            defaultUrl={payment.payment_url ?? ""}
+          />
+
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex gap-3">
@@ -358,8 +404,27 @@ export function PaymentRow({
           <p className="text-sm text-muted">
             {formatDueDate(payment.due_date)} · {RECURRENCE_LABEL[payment.recurrence]}
             {payment.amount != null &&
-              ` · $${Number(payment.amount).toLocaleString("es-CO")}`}
+              // "~" because for a variable bill the stored figure is last
+              // month's reality, not this month's promise.
+              ` · ${payment.amount_is_variable ? "~" : ""}$${Number(payment.amount).toLocaleString("es-CO")}`}
           </p>
+          {payment.notes && (
+            <p className="mt-1 flex items-start gap-1.5 text-xs text-muted break-words">
+              <StickyNote size={12} className="mt-0.5 shrink-0" />
+              {payment.notes}
+            </p>
+          )}
+          {payment.payment_url && (
+            <a
+              href={payment.payment_url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-1 inline-flex items-center gap-1 text-xs text-accent transition hover:underline"
+            >
+              <Link2 size={12} />
+              Ir a pagar
+            </a>
+          )}
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       </div>
@@ -457,6 +522,46 @@ export function PaymentRow({
           <Trash2 size={18} />
         </button>
       </div>
+
+      <ModalShell
+        open={askingAmount}
+        onClose={() => setAskingAmount(false)}
+        title={`¿Cuánto llegó este mes?`}
+        maxWidth="max-w-sm"
+      >
+        <p className="mb-4 text-sm text-muted">
+          <span className="text-foreground">{payment.name}</span> tiene monto variable.
+          Guardamos el valor real para que el resumen del mes cuadre.
+        </p>
+        <input
+          autoFocus
+          type="text"
+          inputMode="numeric"
+          value={actualAmount}
+          onChange={(e) => setActualAmount(formatMoneyInput(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") confirmActualAmount();
+          }}
+          placeholder="Monto"
+          className={inputClass}
+        />
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setAskingAmount(false)}
+            className="rounded-lg px-4 py-2 text-sm text-muted transition hover:bg-white/10 hover:text-foreground active:scale-95"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={confirmActualAmount}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark active:scale-95"
+          >
+            Marcar pagado
+          </button>
+        </div>
+      </ModalShell>
     </motion.li>
   );
 }

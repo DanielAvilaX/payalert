@@ -8,6 +8,7 @@ import { detectLogo, type LogoId } from "@/lib/logos";
 import { LogoPicker } from "@/app/dashboard/logo-picker";
 import { Select } from "@/app/dashboard/select";
 import { Spinner } from "@/app/dashboard/spinner";
+import { PaymentExtraFields } from "@/app/dashboard/payment-extra-fields";
 import {
   RECURRENCE_OPTIONS,
   WEEKDAY_OPTIONS,
@@ -193,6 +194,8 @@ export function PaymentForm({
         <Zap size={14} className="text-emerald-400" />
         Pago automático (débito/domiciliación)
       </label>
+
+      <PaymentExtraFields />
 
       {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
 

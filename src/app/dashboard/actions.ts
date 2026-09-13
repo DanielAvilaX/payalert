@@ -14,9 +14,12 @@ import {
   isValidISODate,
   parseIntInRange,
   parseName,
+  parseOptionalText,
+  parsePaymentUrl,
   MAX_AMOUNT,
   MAX_REMIND_DAYS_BEFORE,
 } from "@/lib/validation";
+import { settlePayment } from "@/lib/payments";
 
 export type { Recurrence };
 export type ActionState = { error?: string } | undefined;
@@ -30,10 +33,6 @@ const RECURRENCES: Recurrence[] = [
   "semiannual",
   "yearly",
 ];
-
-// Postgres unique_violation. Hit when two submits race for the same row -
-// which, for the writes below, means the work is already done.
-const UNIQUE_VIOLATION = "23505";
 
 /**
  * Every mutation scopes its query by user_id on top of RLS. RLS alone is
@@ -106,6 +105,9 @@ function parsePaymentForm(
         recurrence: Recurrence;
         remind_days_before: number;
         is_automatic: boolean;
+        amount_is_variable: boolean;
+        notes: string | null;
+        payment_url: string | null;
       };
     } {
   const name = parseName(formData.get("name"));
@@ -124,6 +126,14 @@ function parsePaymentForm(
   const amount = parseMoneyInput(String(formData.get("amount") ?? ""));
   if (amount !== null && amount > MAX_AMOUNT) return { error: "El monto es demasiado grande" };
 
+  const paymentUrl = parsePaymentUrl(formData.get("payment_url"));
+  if (paymentUrl === null) return { error: "El enlace de pago no es válido" };
+
+  const notes = formData.get("notes");
+  if (String(notes ?? "").trim() && parseOptionalText(notes) === null) {
+    return { error: "La nota es demasiado larga (máx. 500 caracteres)" };
+  }
+
   const resolved = resolveDueDate(formData, recurrence);
   if ("error" in resolved) return resolved;
 
@@ -136,6 +146,9 @@ function parsePaymentForm(
       recurrence,
       remind_days_before: remindDaysBefore,
       is_automatic: formData.get("is_automatic") === "on",
+      amount_is_variable: formData.get("amount_is_variable") === "on",
+      notes: parseOptionalText(notes),
+      payment_url: paymentUrl ?? null,
     },
   };
 }
@@ -193,49 +206,33 @@ export async function deletePayment(id: string) {
 }
 
 /**
- * Marks a payment as paid, idempotently: the completion event is written
- * first and the database's one-event-per-cycle unique index is what decides
- * whether this is a real completion or a duplicate submit. A double click
- * (or a retry) therefore can't bill the same cycle to the history twice -
- * which previously inflated "Gastado este mes" by a full extra charge.
+ * Marks a payment as paid for its current cycle. The heavy lifting lives in
+ * settlePayment so the Telegram bot settles payments through exactly the
+ * same path (see src/lib/payments.ts).
  *
- * is_paid is set unconditionally so the UI can confirm it (green check,
- * sinks to the bottom) regardless of recurrence. Recurring payments roll
- * forward to their next due date and reopen as unpaid once that due date
- * has actually passed (handled by the cron job) rather than the instant you
- * click - paying early shouldn't immediately reopen next cycle.
+ * `actualAmountRaw` is what a variable bill really came to this month -
+ * for luz/agua/gas the stored figure is only an estimate, and recording the
+ * real one is what keeps "Gastado este mes" honest.
+ *
+ * is_paid is set regardless of recurrence so the UI can confirm it (green
+ * check, sinks to the bottom). Recurring payments roll forward and reopen
+ * as unpaid once the due date has actually passed (handled by the cron job)
+ * rather than the instant you click - paying early shouldn't immediately
+ * reopen next cycle.
  */
-export async function markPaid(id: string) {
+export async function markPaid(id: string, actualAmountRaw?: string) {
   const { supabase, user } = await requireUser();
 
-  const { data: payment, error: fetchError } = await supabase
-    .from("payments")
-    .select("name, amount, due_date")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const { error: eventError } = await supabase.from("payment_events").insert({
-    payment_id: id,
-    user_id: user.id,
-    name: payment.name,
-    amount: payment.amount,
-    due_date: payment.due_date,
-  });
-  // Already recorded for this cycle - fall through and make sure the flag
-  // agrees, rather than failing a click the user experiences as harmless.
-  if (eventError && eventError.code !== UNIQUE_VIOLATION) {
-    throw new Error(eventError.message);
+  let actualAmount: number | null = null;
+  if (actualAmountRaw != null && actualAmountRaw.trim() !== "") {
+    actualAmount = parseMoneyInput(actualAmountRaw);
+    if (actualAmount === null || actualAmount > MAX_AMOUNT) {
+      throw new Error("Monto inválido");
+    }
   }
 
-  const { error } = await supabase
-    .from("payments")
-    .update({ is_paid: true })
-    .eq("id", id)
-    .eq("user_id", user.id);
-  if (error) throw new Error(error.message);
+  const result = await settlePayment(supabase, user.id, id, actualAmount);
+  if ("error" in result) throw new Error(result.error);
 
   revalidatePath("/dashboard", "layout");
 }

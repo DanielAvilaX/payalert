@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { sendTelegramMessage } from "@/lib/telegram";
+import { sendTelegramMessage, type InlineButton } from "@/lib/telegram";
 import {
   nextDueDate,
   colombiaToday,
@@ -17,7 +17,32 @@ type Payment = {
   currency: string;
   due_date: string;
   remind_days_before: number;
+  payment_url: string | null;
 };
+
+/**
+ * A reminder you can act on beats a reminder you have to remember to act
+ * on later: the whole point of the nudge is the payment, and making the
+ * user go find the app to confirm is where the loop usually breaks.
+ */
+function actionButtons(payment: Payment): InlineButton[][] {
+  const row: InlineButton[] = [{ text: "✅ Ya lo pagué", callback_data: `paid:${payment.id}` }];
+  if (payment.payment_url) row.push({ text: "🔗 Pagar", url: payment.payment_url });
+  return [row];
+}
+
+/**
+ * How often an overdue bill keeps nagging. It never stops - the money is
+ * still owed and the payment deliberately doesn't roll to the next cycle
+ * until it's settled - but a daily message forever is how notifications
+ * become wallpaper. So: daily for the first week, every third day for the
+ * first month, then weekly.
+ */
+function shouldNagOverdue(daysOverdue: number): boolean {
+  if (daysOverdue <= 7) return true;
+  if (daysOverdue <= 30) return daysOverdue % 3 === 0;
+  return daysOverdue % 7 === 0;
+}
 
 type ReminderRule = {
   id: string;
@@ -215,7 +240,11 @@ export async function GET(request: NextRequest) {
 
   const { data: paymentsData, error } = await supabase
     .from("payments")
-    .select("id, user_id, name, amount, currency, due_date, remind_days_before")
+    // `*` rather than a column list so a deploy that lands before its
+    // migration degrades instead of breaking: a column this route reads but
+    // that doesn't exist yet comes back undefined (and its feature stays
+    // dormant) instead of failing the query and stopping every reminder.
+    .select("*")
     .eq("is_paid", false)
     .eq("is_paused", false);
 
@@ -291,7 +320,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      await sendTelegramMessage(chatId, text);
+      await sendTelegramMessage(chatId, text, actionButtons(payment));
       return true;
     } catch (e) {
       await supabase.from("notification_log").delete().eq("id", claim.id);
@@ -328,7 +357,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      await sendTelegramMessage(chatId, ruleMessage(payment, rule, fireAt));
+      await sendTelegramMessage(chatId, ruleMessage(payment, rule, fireAt), actionButtons(payment));
       return true;
     } catch (e) {
       await supabase.from("reminder_fires").delete().eq("id", claim.id);
@@ -343,13 +372,15 @@ export async function GET(request: NextRequest) {
       const remaining = daysUntil(payment.due_date, todayStr);
       const rules = rulesByPayment.get(payment.id) ?? [];
 
-      // Overdue always fires (once a day) regardless of custom rules - the
-      // escalating schedules only cover up to the due day itself.
-      if (remaining < 0) {
+      // Overdue fires regardless of custom rules - the escalating schedules
+      // only cover up to the due day itself - but at a decaying cadence so
+      // a long-unpaid bill doesn't turn into daily wallpaper.
+      if (remaining < 0 && shouldNagOverdue(-remaining)) {
+        const days = -remaining;
         const sentNow = await sendOnce(
           payment,
           "overdue",
-          `⚠️ <b>${payment.name}</b>${formatAmount(payment)} venció el ${payment.due_date} y sigue sin marcarse como pagado.`
+          `⚠️ <b>${payment.name}</b>${formatAmount(payment)} venció hace ${days} día${days === 1 ? "" : "s"} (${payment.due_date}) y sigue sin marcarse como pagado.`
         );
         if (sentNow) sent += 1;
       }

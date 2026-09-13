@@ -5,6 +5,8 @@ import {
   isValidISODate,
   parseIntInRange,
   parseName,
+  parseOptionalText,
+  parsePaymentUrl,
   parseTimeOfDay,
 } from "../src/lib/validation.ts";
 import { formatMoneyInput, parseMoneyInput } from "../src/lib/format.ts";
@@ -49,6 +51,32 @@ test("parseTimeOfDay accepts what <input type=time> emits", () => {
   assert.equal(parseTimeOfDay("09:60"), null);
   assert.equal(parseTimeOfDay("9:00"), null);
   assert.equal(parseTimeOfDay(""), null);
+});
+
+test("parsePaymentUrl refuses anything that isn't http(s)", () => {
+  // This value ends up in an href and in a Telegram button, so a
+  // javascript: or data: URL would be script execution on tap.
+  assert.equal(parsePaymentUrl("javascript:alert(1)"), null);
+  assert.equal(parsePaymentUrl("data:text/html,<script>x</script>"), null);
+  assert.equal(parsePaymentUrl("file:///etc/passwd"), null);
+  assert.equal(parsePaymentUrl("no es una url"), null);
+  assert.equal(parsePaymentUrl("x".repeat(501)), null);
+});
+
+test("parsePaymentUrl accepts a pasted domain and normalises it", () => {
+  assert.equal(
+    parsePaymentUrl("https://sucursalvirtual.bancolombia.com"),
+    "https://sucursalvirtual.bancolombia.com/"
+  );
+  assert.equal(parsePaymentUrl("bancolombia.com"), "https://bancolombia.com/");
+  assert.equal(parsePaymentUrl("  "), undefined); // blank means "cleared"
+});
+
+test("parseOptionalText treats blank as absent and caps length", () => {
+  assert.equal(parseOptionalText("  ref 12345  "), "ref 12345");
+  assert.equal(parseOptionalText(""), null);
+  assert.equal(parseOptionalText("x".repeat(500)), "x".repeat(500));
+  assert.equal(parseOptionalText("x".repeat(501)), null);
 });
 
 test("money input survives a format/parse round trip", () => {
