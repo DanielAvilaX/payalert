@@ -14,17 +14,6 @@ export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/**
- * An absolute link into the app for a URL button, or null. Telegram only
- * accepts public https URLs there - a localhost site URL (as in dev) would
- * make the whole sendMessage call fail, taking the reminder down with it.
- */
-export function appLink(path: string): string | null {
-  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
-  if (!base || !base.startsWith("https://")) return null;
-  return `${base}${path}`;
-}
-
 async function callTelegram(method: string, payload: Record<string, unknown>) {
   const token = process.env.TELEGRAM_BOT_TOKEN!;
   const res = await fetch(`${TELEGRAM_API}/bot${token}/${method}`, {
@@ -68,21 +57,14 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
 /**
  * Rewrites the original reminder in place once it's been acted on, so the
  * chat history reads as a record of what happened rather than leaving a
- * stale "vence hoy" with a live button under it. Passing no buttons removes
- * the old ones.
+ * stale "vence hoy" with a live button under it.
  */
-export async function editMessageText(
-  chatId: number,
-  messageId: number,
-  text: string,
-  buttons?: InlineButton[][]
-) {
+export async function editMessageText(chatId: number, messageId: number, text: string) {
   await callTelegram("editMessageText", {
     chat_id: chatId,
     message_id: messageId,
     text,
     parse_mode: "HTML",
-    reply_markup: { inline_keyboard: buttons ?? [] },
   });
 }
 

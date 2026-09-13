@@ -7,7 +7,6 @@ export type SettledPayment = {
   name: string;
   amount: number | null;
   due_date: string;
-  recurrence: string;
   amount_is_variable: boolean;
 };
 
@@ -33,7 +32,7 @@ export async function settlePayment(
 ): Promise<{ error: string } | { payment: SettledPayment }> {
   const { data: payment, error: fetchError } = await supabase
     .from("payments")
-    .select("name, amount, due_date, recurrence, amount_is_variable")
+    .select("name, amount, due_date, amount_is_variable")
     .eq("id", paymentId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -64,10 +63,5 @@ export async function settlePayment(
     .eq("user_id", userId);
   if (error) return { error: error.message };
 
-  return {
-    payment: {
-      ...(payment as SettledPayment),
-      amount: actualAmount ?? payment.amount,
-    },
-  };
+  return { payment: payment as SettledPayment };
 }

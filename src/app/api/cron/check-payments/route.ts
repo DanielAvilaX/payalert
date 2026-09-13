@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { appLink, escapeHtml, sendTelegramMessage, type InlineButton } from "@/lib/telegram";
+import { escapeHtml, sendTelegramMessage, type InlineButton } from "@/lib/telegram";
 import {
   nextDueDate,
   colombiaToday,
@@ -8,8 +8,6 @@ import {
   daysUntil,
   type Recurrence,
 } from "@/lib/dates";
-import { formatCOP } from "@/lib/format";
-import { formatDueDate } from "@/lib/payment-status";
 
 type Payment = {
   id: string;
@@ -20,70 +18,17 @@ type Payment = {
   due_date: string;
   remind_days_before: number;
   payment_url: string | null;
-  amount_is_variable?: boolean | null;
 };
 
 /**
  * A reminder you can act on beats a reminder you have to remember to act
  * on later: the whole point of the nudge is the payment, and making the
  * user go find the app to confirm is where the loop usually breaks.
- * Stacked one per row, as in the redesign - side by side they truncate on
- * a phone. App links only appear when the site URL is public https.
  */
 function actionButtons(payment: Payment): InlineButton[][] {
-  const rows: InlineButton[][] = [[{ text: "✅ Ya lo pagué", callback_data: `paid:${payment.id}` }]];
-  if (payment.payment_url) rows.push([{ text: "🔗 Pagar", url: payment.payment_url }]);
-
-  const details = appLink(`/dashboard/pagos?pago=${payment.id}`);
-  if (details) rows.push([{ text: "Ver detalles", url: details }]);
-  const settings = appLink("/dashboard/configuracion");
-  if (settings) rows.push([{ text: "Configurar recordatorios", url: settings }]);
-  return rows;
-}
-
-function relativeDue(remaining: number): string {
-  if (remaining === 0) return "hoy";
-  if (remaining === 1) return "mañana";
-  if (remaining > 1) return `en ${remaining} días`;
-  const late = -remaining;
-  return `hace ${late} día${late === 1 ? "" : "s"}`;
-}
-
-/**
- * The reminder card from the redesign: title, greeting, one line saying why
- * this message arrived (that line carries the escalating urgency), then the
- * payment itself.
- */
-function composeReminder(
-  payment: Payment,
-  lead: string,
-  firstName: string | null,
-  remaining: number
-): string {
-  const title =
-    remaining < 0
-      ? "⚠️ <b>Pago vencido</b>"
-      : remaining === 0
-        ? "🚨 <b>Tu pago vence hoy</b>"
-        : "🔔 <b>Recordatorio de pago</b>";
-
-  const lines = [
-    title,
-    "",
-    firstName ? `Hola ${escapeHtml(firstName)} 👋` : "Hola 👋",
-    lead,
-    "",
-    `<b>${escapeHtml(payment.name)}</b>`,
-  ];
-  if (payment.amount != null) {
-    lines.push(
-      payment.amount_is_variable
-        ? `~${formatCOP(payment.amount)} (monto aproximado)`
-        : formatCOP(payment.amount)
-    );
-  }
-  lines.push(`📅 ${formatDueDate(payment.due_date, true)} (${relativeDue(remaining)})`);
-  return lines.join("\n");
+  const row: InlineButton[] = [{ text: "✅ Ya lo pagué", callback_data: `paid:${payment.id}` }];
+  if (payment.payment_url) row.push({ text: "🔗 Pagar", url: payment.payment_url });
+  return [row];
 }
 
 /**
@@ -127,6 +72,10 @@ function subtractDays(dateStr: string, days: number): string {
 
 const localToUtc = colombiaLocalToUtc;
 
+function formatAmount(payment: Payment): string {
+  return payment.amount != null ? ` ($${Number(payment.amount).toLocaleString("es-CO")})` : "";
+}
+
 // --- Custom per-payment rules (reminder_rules) ---
 
 function fireTimesForRule(rule: ReminderRule, dueDate: string): Date[] {
@@ -149,20 +98,30 @@ function fireTimesForRule(rule: ReminderRule, dueDate: string): Date[] {
 // Escalates tone/urgency the closer `fireAt` is to the due date - and, for
 // a repeating rule on the due day itself, the further into that day's
 // window it fires.
-function ruleLead(payment: Payment, rule: ReminderRule, fireAt: Date): string {
+function ruleMessage(payment: Payment, rule: ReminderRule, fireAt: Date): string {
+  const amountText = formatAmount(payment);
+  const name = `<b>${escapeHtml(payment.name)}</b>${amountText}`;
+
   if (rule.days_before_due === 0) {
     if (rule.end_time && rule.repeat_interval_minutes) {
       const start = localToUtc(payment.due_date, rule.start_time).getTime();
       const end = localToUtc(payment.due_date, rule.end_time).getTime();
       const progress = end > start ? (fireAt.getTime() - start) / (end - start) : 1;
-      if (progress > 0.75) return "🚨 ¡Última llamada! Se está acabando el tiempo para este pago:";
-      if (progress > 0.35) return "Este pago vence HOY. No lo olvides:";
+      if (progress > 0.75) {
+        return `🚨 ¡ÚLTIMA LLAMADA! ${name} vence HOY y se está acabando el tiempo.`;
+      }
+      if (progress > 0.35) {
+        return `⚠️ ${name} vence HOY. No lo olvides.`;
+      }
     }
-    return "Hoy vence este pago:";
+    return `📅 Hoy vence ${name}.`;
   }
 
-  if (rule.days_before_due === 1) return "Tienes un pago que vence mañana:";
-  return "Tienes un pago próximo a vencer:";
+  if (rule.days_before_due === 1) {
+    return `⏰ ${name} vence mañana.`;
+  }
+
+  return `🔔 ${name} vence en ${rule.days_before_due} días (${payment.due_date}).`;
 }
 
 // --- Default schedule (no custom rules) ---
@@ -172,41 +131,64 @@ function ruleLead(payment: Payment, rule: ReminderRule, fireAt: Date): string {
 // as the due date gets closer. The due day itself is the most urgent of
 // all, so it repeats the same fixed-tone notice every 2 hours from 8am to
 // 8pm instead of escalating the wording further - overdue is handled
-// separately below and keeps repeating until paid.
+// separately below and keeps repeating once a day until paid.
 
 const DUE_DAY_TIMES = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
-type GeneralSlot = { time: string; kind: string; lead: string };
+type GeneralSlot = { time: string; kind: string; text: (payment: Payment, remaining: number) => string };
 
 function generalSchedule(remaining: number): GeneralSlot[] {
   if (remaining === 0) {
     return DUE_DAY_TIMES.map((time, i) => ({
       time,
       kind: `gen-0-${i}`,
-      lead: "Este pago vence HOY. ¡No lo dejes pasar!",
+      text: (p) => `🚨 <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence HOY. ¡No lo dejes pasar!`,
     }));
   }
 
   if (remaining === 1) {
     return [
-      { time: "09:00", kind: "gen-1-a", lead: "Tienes un pago que vence mañana:" },
-      { time: "14:00", kind: "gen-1-b", lead: "Vence mañana. Mejor déjalo listo hoy:" },
+      {
+        time: "09:00",
+        kind: "gen-1-a",
+        text: (p) => `⚠️ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence mañana.`,
+      },
+      {
+        time: "14:00",
+        kind: "gen-1-b",
+        text: (p) => `⚠️ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence mañana. Prepáralo hoy.`,
+      },
       {
         time: "20:00",
         kind: "gen-1-c",
-        lead: "Vence mañana temprano. ¡Últimas horas para prepararlo!",
+        text: (p) =>
+          `🚨 <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence mañana temprano. ¡Últimas horas para prepararlo!`,
       },
     ];
   }
 
   if (remaining === 2) {
     return [
-      { time: "09:00", kind: "gen-2-a", lead: "Tienes un pago próximo a vencer:" },
-      { time: "18:00", kind: "gen-2-b", lead: "Vence en 2 días. No lo dejes para el final:" },
+      {
+        time: "09:00",
+        kind: "gen-2-a",
+        text: (p) => `⏰ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence en 2 días (${p.due_date}).`,
+      },
+      {
+        time: "18:00",
+        kind: "gen-2-b",
+        text: (p) => `⏰ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence en 2 días. No lo dejes para el final.`,
+      },
     ];
   }
 
-  return [{ time: "09:00", kind: "gen-far", lead: "Tienes un pago próximo a vencer:" }];
+  return [
+    {
+      time: "09:00",
+      kind: "gen-far",
+      text: (p, r) => `🔔 <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence en ${r} días (${p.due_date}).`,
+    },
+  ];
 }
 
 // Postgres unique_violation - here it means another concurrent run already
@@ -297,33 +279,6 @@ export async function GET(request: NextRequest) {
     return chatId;
   }
 
-  // Looked up only when a message is actually about to go out, and at most
-  // once per user per run. A failed lookup just drops the name from the
-  // greeting - it must never cost the reminder itself.
-  const nameCache = new Map<string, string | null>();
-  async function firstNameFor(userId: string): Promise<string | null> {
-    if (nameCache.has(userId)) return nameCache.get(userId)!;
-    let firstName: string | null = null;
-    try {
-      const { data } = await supabase.auth.admin.getUserById(userId);
-      const fullName = (data.user?.user_metadata?.full_name as string | undefined)?.trim();
-      firstName = fullName ? fullName.split(/\s+/)[0] : null;
-    } catch {
-      firstName = null;
-    }
-    nameCache.set(userId, firstName);
-    return firstName;
-  }
-
-  async function reminderText(payment: Payment, lead: string): Promise<string> {
-    return composeReminder(
-      payment,
-      lead,
-      await firstNameFor(payment.user_id),
-      daysUntil(payment.due_date, todayStr)
-    );
-  }
-
   /**
    * Claim-then-send. The ledger row is written *before* the Telegram call,
    * so the database's unique constraint - not a prior SELECT - is what
@@ -340,7 +295,7 @@ export async function GET(request: NextRequest) {
    * repeat once a day for as long as their window lasts, and due_date
    * doesn't change while that's happening.
    */
-  async function sendOnce(payment: Payment, kind: string, lead: string): Promise<boolean> {
+  async function sendOnce(payment: Payment, kind: string, text: string): Promise<boolean> {
     const chatId = await chatIdFor(payment.user_id);
     if (!chatId) return false;
 
@@ -365,7 +320,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      await sendTelegramMessage(chatId, await reminderText(payment, lead), actionButtons(payment));
+      await sendTelegramMessage(chatId, text, actionButtons(payment));
       return true;
     } catch (e) {
       await supabase.from("notification_log").delete().eq("id", claim.id);
@@ -402,11 +357,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      await sendTelegramMessage(
-        chatId,
-        await reminderText(payment, ruleLead(payment, rule, fireAt)),
-        actionButtons(payment)
-      );
+      await sendTelegramMessage(chatId, ruleMessage(payment, rule, fireAt), actionButtons(payment));
       return true;
     } catch (e) {
       await supabase.from("reminder_fires").delete().eq("id", claim.id);
@@ -425,10 +376,11 @@ export async function GET(request: NextRequest) {
       // only cover up to the due day itself - but at a decaying cadence so
       // a long-unpaid bill doesn't turn into daily wallpaper.
       if (remaining < 0 && shouldNagOverdue(-remaining)) {
+        const days = -remaining;
         const sentNow = await sendOnce(
           payment,
           "overdue",
-          "Este pago ya venció y sigue sin marcarse como pagado:"
+          `⚠️ <b>${escapeHtml(payment.name)}</b>${formatAmount(payment)} venció hace ${days} día${days === 1 ? "" : "s"} (${payment.due_date}) y sigue sin marcarse como pagado.`
         );
         if (sentNow) sent += 1;
       }
@@ -442,7 +394,7 @@ export async function GET(request: NextRequest) {
             if (fireAt > now) continue;
             if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
 
-            const sentNow = await sendOnce(payment, slot.kind, slot.lead);
+            const sentNow = await sendOnce(payment, slot.kind, slot.text(payment, remaining));
             if (sentNow) sent += 1;
           }
         }
