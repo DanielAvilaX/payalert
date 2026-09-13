@@ -56,7 +56,7 @@ export function StatCards({
       {stats.map(({ label, value, hint, icon: Icon, bg }, i) => (
         <div
           key={label}
-          className="glass-panel animate-pop-in flex items-center gap-4 rounded-2xl p-5"
+          className="card animate-pop-in flex items-center gap-4 rounded-2xl p-5"
           style={{ animationDelay: `${i * 70}ms` }}
         >
           <div

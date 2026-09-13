@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Link2, StickyNote, TrendingUp } from "lucide-react";
 
-const inputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
+const inputClass = "field w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted";
 
 /**
  * The three optional fields, shared by the create and edit forms.

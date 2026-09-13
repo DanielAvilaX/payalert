@@ -3,14 +3,21 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
+// Open dialogs, innermost last. Escape should only ever close the one on
+// top - with an amount prompt over a detail sheet, closing both at once
+// throws away the user's place.
+const openStack: object[] = [];
+
 /**
  * One dialog implementation for every modal in the app.
  *
- * The three modals used to hand-roll the same backdrop and card markup with
- * slightly different results (one scrolled, two didn't; none of them closed
- * on Escape, moved focus, or told a screen reader they were a dialog, and
- * all three let the page scroll underneath on mobile). Centralising it means
- * those behaviours exist once and can't drift apart again.
+ * The modals used to hand-roll the same backdrop and card markup with
+ * slightly different results (one scrolled, others didn't; none closed on
+ * Escape, moved focus, locked background scroll or told a screen reader
+ * they were a dialog). Centralising it means those behaviours exist once.
+ *
+ * On phones it docks to the bottom as a sheet - the thumb-reachable pattern
+ * native apps use - and centres as a regular dialog from `sm` up.
  */
 export function ModalShell({
   open,
@@ -43,14 +50,21 @@ export function ModalShell({
   useEffect(() => {
     if (!open) return;
 
+    const token = {};
+    openStack.push(token);
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    // Focus the dialog itself rather than guessing at a first field: the
-    // reminders modal opens onto a list, and yanking focus into a text input
-    // there would also pop the keyboard open on mobile for no reason.
-    dialogRef.current?.focus();
+
+    // Focus the dialog itself unless something inside already claimed focus
+    // (an autoFocus field): the reminders modal opens onto a list, and
+    // pulling focus into an input there would pop the phone keyboard open.
+    if (!dialogRef.current?.contains(document.activeElement)) {
+      dialogRef.current?.focus();
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCloseRef.current();
+      if (event.key === "Escape" && openStack[openStack.length - 1] === token) {
+        onCloseRef.current();
+      }
     }
     document.addEventListener("keydown", handleKeyDown);
 
@@ -60,6 +74,8 @@ export function ModalShell({
     document.body.style.overflow = "hidden";
 
     return () => {
+      const index = openStack.indexOf(token);
+      if (index !== -1) openStack.splice(index, 1);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
@@ -70,7 +86,7 @@ export function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -80,18 +96,18 @@ export function ModalShell({
         aria-labelledby={title || titleSlot ? titleId : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`animate-pop-in scrollbar-glass max-h-[90vh] w-full ${maxWidth} overflow-y-auto rounded-2xl border border-white/15 bg-[#0d1020] p-6 shadow-2xl outline-none`}
+        className={`animate-pop-in scrollbar-thin max-h-[92dvh] w-full ${maxWidth} overflow-y-auto rounded-t-3xl border border-border bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl outline-none sm:rounded-2xl sm:p-6`}
       >
         {(title || titleSlot) && (
           <div className="mb-4 flex items-start justify-between gap-3">
             <div id={titleId} className="min-w-0">
-              {titleSlot ?? <h2 className="text-lg font-medium">{title}</h2>}
+              {titleSlot ?? <h2 className="text-lg font-semibold">{title}</h2>}
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
-              className="shrink-0 rounded-lg p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground"
+              className="shrink-0 rounded-lg p-1.5 text-muted transition hover:bg-surface-2 hover:text-foreground"
             >
               <X size={18} />
             </button>

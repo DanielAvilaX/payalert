@@ -56,7 +56,7 @@ export function ReminderRuleItem({
 
   if (editing) {
     return (
-      <li className="glass-input rounded-lg p-3">
+      <li className="field rounded-lg p-3">
         <form action={handleSave} className="flex flex-col gap-3">
           <ReminderRuleFields
             defaultDays={current.days_before_due}
@@ -67,7 +67,7 @@ export function ReminderRuleItem({
             defaultInterval={String(current.repeat_interval_minutes ?? 120)}
           />
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-2">
             <button
@@ -93,14 +93,14 @@ export function ReminderRuleItem({
   }
 
   return (
-    <li className="glass-input flex items-center justify-between rounded-lg px-3 py-2 text-sm">
+    <li className="field flex items-center justify-between rounded-lg px-3 py-2 text-sm">
       <span>{describeReminderRule(current)}</span>
       <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={() => setEditing(true)}
           aria-label="Editar regla"
-          className="rounded-md p-1.5 text-muted transition hover:bg-white/10 hover:text-foreground"
+          className="rounded-md p-1.5 text-muted transition hover:bg-surface-2 hover:text-foreground"
         >
           <Pencil size={14} />
         </button>
@@ -109,7 +109,7 @@ export function ReminderRuleItem({
           disabled={pending}
           onClick={handleDelete}
           aria-label="Eliminar regla"
-          className="rounded-md p-1.5 text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+          className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50"
         >
           <Trash2 size={14} />
         </button>

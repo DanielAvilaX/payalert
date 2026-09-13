@@ -1,127 +1,87 @@
 @import "tailwindcss";
 
+/* Light theme - the redesign mockup: a soft lavender-grey page, white cards,
+   indigo as the single accent. */
 :root {
-  --background: #05060f;
-  --foreground: #f1f4fd;
-  --muted: #8a93b8;
-  --accent: #5b7cfa;
-  --accent-dark: #3f5fe0;
-  --border: rgba(255, 255, 255, 0.12);
+  --background: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #f3f4f8;
+  --foreground: #0f172a;
+  --muted: #64748b; /* 4.76:1 on white - passes AA for body text */
+  --subtle: #94a3b8; /* placeholders and inactive icons only */
+  --accent: #4f46e5;
+  --accent-dark: #4338ca;
+  --accent-soft: #eef2ff;
+  --border: #e5e7ef;
+  --ring: rgba(79, 70, 229, 0.28);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
+  --color-accent-soft: var(--accent-soft);
   --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-heading);
+  --font-heading: var(--font-geist-sans);
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-heading);
-  letter-spacing: -0.01em;
+html {
+  color-scheme: light;
 }
 
 body {
   min-height: 100vh;
   color: var(--foreground);
   background-color: var(--background);
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Living background: a few large, blurred color orbs that drift slowly
-   behind the glass UI. Glassmorphism needs something colorful moving
-   behind it, or the blur has nothing to distort and reads as flat. */
-.bg-orbs {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
+h1,
+h2,
+h3 {
+  letter-spacing: -0.01em;
 }
 
-.bg-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.65;
-  will-change: transform;
-}
-
-.bg-orb-1 {
-  width: 46vw;
-  height: 46vw;
-  top: -12%;
-  left: -8%;
-  background: radial-gradient(circle, #5b7cfa 0%, transparent 70%);
-  animation: orb-drift-1 24s ease-in-out infinite;
-}
-
-.bg-orb-2 {
-  width: 40vw;
-  height: 40vw;
-  top: 25%;
-  right: -12%;
-  background: radial-gradient(circle, #38bdf8 0%, transparent 70%);
-  animation: orb-drift-2 28s ease-in-out infinite;
-}
-
-.bg-orb-3 {
-  width: 50vw;
-  height: 50vw;
-  bottom: -18%;
-  left: 15%;
-  background: radial-gradient(circle, #8157f5 0%, transparent 70%);
-  animation: orb-drift-3 32s ease-in-out infinite;
-}
-
-@keyframes orb-drift-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(7vw, 8vh) scale(1.12); }
-}
-
-@keyframes orb-drift-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-8vw, 6vh) scale(0.92); }
-}
-
-@keyframes orb-drift-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(5vw, -7vh) scale(1.08); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bg-orb {
-    animation: none;
+/* In the components layer on purpose: Tailwind utilities live in a later
+   layer, so a `card` that also carries `bg-emerald-50` or `rounded-xl` gets
+   the utility. Unlayered, these rules would silently beat every utility. */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 1px 3px rgba(15, 23, 42, 0.03);
   }
-}
 
-.glass-panel {
-  background: rgba(255, 255, 255, 0.055);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid var(--border);
-}
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    color-scheme: light;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
 
-.glass-input {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-}
+  .field::placeholder {
+    color: var(--subtle);
+  }
 
-.glass-input:focus {
-  border-color: var(--accent);
-  outline: none;
-}
-
-/* Makes native browser chrome (date picker popup, number spinners) render
-   in dark mode instead of clashing light-on-dark with the rest of the UI. */
-.glass-input {
-  color-scheme: dark;
+  .field:focus,
+  .field:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
 }
 
 /* iOS Safari auto-zooms into any input/select/textarea rendered below 16px,
@@ -135,51 +95,56 @@ body {
   }
 }
 
-.scrollbar-glass {
+.scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
-.scrollbar-glass::-webkit-scrollbar {
+.scrollbar-thin::-webkit-scrollbar {
   width: 8px;
 }
 
-.scrollbar-glass::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-glass::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 9999px;
-}
-
-.scrollbar-glass::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 @keyframes pop-in {
   0% {
     opacity: 0;
-    transform: translateY(14px) scale(0.96);
+    transform: translateY(14px) scale(0.97);
   }
   60% {
     opacity: 1;
-    transform: translateY(-2px) scale(1.01);
+    transform: translateY(-2px) scale(1.005);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    /* "none", not an identity transform: with fill-mode both, any other value
+       stays applied and turns the dialog into a containing block for its
+       fixed-position descendants. */
+    transform: none;
   }
 }
 
 .animate-pop-in {
-  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: pop-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-pop-in {
-    animation: none;
+/* Route change fade. Opacity only: any transform on the page wrapper would
+   make it the containing block for the floating "+" button and every
+   position:fixed dialog inside the page, shifting them for the duration. */
+@keyframes view-in {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-view-in {
+  animation: view-in 0.28s ease-out both;
 }
 
 @keyframes loading-bounce {
@@ -224,9 +189,6 @@ body {
   }
   to {
     opacity: 1;
-    /* "none", not translateY(0): with fill-mode both, any other transform
-       value stays applied after the animation and turns the element into a
-       containing block for its absolutely positioned descendants. */
     transform: none;
   }
 }
@@ -264,11 +226,18 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   /* Only the motion goes. Job Hunter's version also set opacity: 0 here,
      which leaves the form card permanently invisible for anyone with
      "reduce motion" switched on - not carried over. */
+  .animate-pop-in,
+  .animate-view-in,
   .animate-fade-in-up,
-  .animate-blob {
+  .animate-blob,
+  .loading-dot,
+  .loading-glow {
     animation: none;
   }
 }

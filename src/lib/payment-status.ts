@@ -10,8 +10,8 @@ import { daysUntil } from "./dates.ts";
  * about this one?" before it answers "what is the date?" - a raw
  * "2026-09-10" makes the reader do the subtraction themselves, which is
  * exactly the work the app exists to remove. Keeping the wording and the
- * colour together here also stops the list, the stats and any future view
- * from drifting into three slightly different vocabularies.
+ * colour together here also stops the table, the cards, the stats and the
+ * notification bell from drifting into slightly different vocabularies.
  */
 export type UrgencyTone = "overdue" | "today" | "soon" | "upcoming" | "far";
 
@@ -28,6 +28,11 @@ const MONTHS_SHORT = [
   "jul", "ago", "sep", "oct", "nov", "dic",
 ];
 
+const MONTHS_LONG = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
 /**
  * "2026-09-10" -> "10 sep". Formatted from the string's own parts on
  * purpose: `new Date("2026-09-10")` is parsed as UTC midnight, so any
@@ -40,15 +45,16 @@ export function formatDueDate(dueDate: string, withYear = false): string {
   return withYear ? `${base} ${year}` : base;
 }
 
-const MONTHS_LONG = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
 /** Month name from a YYYY-MM-DD string, with the same no-Date guarantee. */
 export function formatMonthName(isoDate: string): string {
   const month = Number(isoDate.split("-")[1]);
   return MONTHS_LONG[month - 1] ?? "";
+}
+
+/** Short month label for chart axes: "2026-09" or "2026-09-01" -> "sep". */
+export function formatMonthShort(isoDate: string): string {
+  const month = Number(isoDate.split("-")[1]);
+  return MONTHS_SHORT[month - 1] ?? "";
 }
 
 export function describeDue(dueDate: string, todayStr: string): DueDescription {
@@ -69,20 +75,58 @@ export function describeDue(dueDate: string, todayStr: string): DueDescription {
   return { tone: "far", days, label: formatDueDate(dueDate) };
 }
 
-/** Tailwind classes per tone, so a badge reads the same everywhere. */
-export const TONE_BADGE: Record<UrgencyTone, string> = {
-  overdue: "bg-red-500/15 text-red-300 ring-1 ring-red-500/30",
-  today: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
-  soon: "bg-amber-500/10 text-amber-200/90",
-  upcoming: "bg-white/5 text-muted",
-  far: "bg-white/5 text-muted",
+export type StatusKind = "paid" | "paused" | "overdue" | "today" | "soon" | "pending";
+
+export type PaymentStatus = {
+  kind: StatusKind;
+  /** The pill text - short, and never the only carrier of meaning. */
+  label: string;
+  /** Secondary line under the date: "En 3 días", "Venció ayer", "Al día". */
+  detail: string;
+  badgeClass: string;
+  dotClass: string;
 };
 
-/** Left edge accent on the card - the at-a-glance signal when scanning. */
-export const TONE_EDGE: Record<UrgencyTone, string> = {
-  overdue: "before:bg-red-500",
-  today: "before:bg-amber-400",
-  soon: "before:bg-amber-400/60",
-  upcoming: "before:bg-white/15",
-  far: "before:bg-white/10",
+// Status hues are reserved for state and always ship with their label, so
+// no reader has to rely on telling amber from red. "Pendiente" is a far-off
+// bill with nothing wrong with it, so it stays neutral indigo rather than
+// borrowing an alarm colour.
+const BADGE: Record<StatusKind, string> = {
+  paid: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+  paused: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
+  overdue: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+  today: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+  soon: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+  pending: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200",
 };
+
+const DOT: Record<StatusKind, string> = {
+  paid: "bg-emerald-500",
+  paused: "bg-slate-400",
+  overdue: "bg-red-500",
+  today: "bg-red-500",
+  soon: "bg-amber-500",
+  pending: "bg-indigo-500",
+};
+
+/** Paused and paid outrank urgency: a settled or on-hold bill shouldn't shout. */
+export function paymentStatus(
+  payment: { is_paid: boolean; is_paused?: boolean | null; due_date: string },
+  todayStr: string
+): PaymentStatus {
+  const due = describeDue(payment.due_date, todayStr);
+  const make = (kind: StatusKind, label: string, detail: string): PaymentStatus => ({
+    kind,
+    label,
+    detail,
+    badgeClass: BADGE[kind],
+    dotClass: DOT[kind],
+  });
+
+  if (payment.is_paused) return make("paused", "Pausado", "Sin recordatorios");
+  if (payment.is_paid) return make("paid", "Pagado", "Al día");
+  if (due.days < 0) return make("overdue", "Vencido", due.label);
+  if (due.days === 0) return make("today", "Vence hoy", "Hoy");
+  if (due.days <= 7) return make("soon", "Próximo", due.label);
+  return make("pending", "Pendiente", due.label);
+}

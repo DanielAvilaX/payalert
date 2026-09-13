@@ -63,7 +63,7 @@ export function Select({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="glass-input flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-foreground"
+        className="field flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-foreground"
       >
         <span className={current ? "" : "text-muted"}>
           {current?.label ?? placeholder ?? "Selecciona..."}
@@ -80,7 +80,7 @@ export function Select({
           <div
             ref={panelRef}
             style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width }}
-            className="glass-panel z-[200] max-h-56 overflow-y-auto rounded-lg p-1 shadow-xl animate-pop-in"
+            className="card z-[200] max-h-56 overflow-y-auto rounded-lg p-1 shadow-xl animate-pop-in"
           >
             {options.map((opt) => (
               <button
@@ -90,8 +90,8 @@ export function Select({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-white/10 ${
-                  opt.value === value ? "bg-accent/15 text-accent" : ""
+                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-surface-2 ${
+                  opt.value === value ? "bg-accent-soft text-accent" : ""
                 }`}
               >
                 {opt.label}

@@ -35,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {/* Above the mobile nav bar, out of the way of the action buttons. */}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-[120] flex flex-col items-center gap-2 px-4 md:bottom-6"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-[120] flex flex-col items-center gap-2 px-4 lg:bottom-6"
       >
         <AnimatePresence initial={false}>
           {toasts.map((toast) => (
@@ -45,8 +45,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.94 }}
               transition={{ type: "spring", stiffness: 320, damping: 26 }}
-              className={`glass-panel flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm shadow-xl ${
-                toast.tone === "success" ? "text-emerald-300" : "text-red-300"
+              className={`card flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm shadow-xl ${
+                toast.tone === "success" ? "text-emerald-600" : "text-red-600"
               }`}
             >
               {toast.tone === "success" ? (

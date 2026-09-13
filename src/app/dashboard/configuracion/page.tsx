@@ -27,7 +27,7 @@ export default async function ConfiguracionPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div>
+      <div className="hidden lg:block">
         <h1 className="text-2xl font-semibold">Configuración</h1>
         <p className="text-sm text-muted">
           Preferencias generales y reglas personalizadas de recordatorios.
@@ -36,9 +36,9 @@ export default async function ConfiguracionPage() {
 
       <TelegramConnect connected={!!telegramConnection} />
 
-      <section className="glass-panel animate-pop-in rounded-2xl p-6">
+      <section className="card animate-pop-in rounded-2xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
             <Settings size={18} />
           </span>
           Preferencias generales
@@ -46,9 +46,9 @@ export default async function ConfiguracionPage() {
         <DefaultReminderForm defaultValue={defaultDays} />
       </section>
 
-      <section className="glass-panel animate-pop-in rounded-2xl p-6">
+      <section className="card animate-pop-in rounded-2xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
             <Bell size={18} />
           </span>
           Reglas personalizadas

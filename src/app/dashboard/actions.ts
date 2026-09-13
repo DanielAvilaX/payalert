@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseMoneyInput } from "@/lib/format";
 import {
+  isSameSchedule,
   nearestMonthlyDueDate,
   nearestYearlyDueDate,
   nearestWeekdayDueDate,
@@ -23,6 +24,13 @@ import { settlePayment } from "@/lib/payments";
 
 export type { Recurrence };
 export type ActionState = { error?: string } | undefined;
+
+export type PaymentHistoryEntry = {
+  id: string;
+  completed_at: string;
+  amount: number | null;
+  due_date: string;
+};
 
 const RECURRENCES: Recurrence[] = [
   "none",
@@ -172,9 +180,14 @@ export async function createPayment(
   revalidatePath("/dashboard", "layout");
 }
 
-// Edits an existing payment. The recurrence can be changed just like on
-// creation, so the due date is derived from whichever fields that recurrence
-// asks for (day-of-month, day+month, weekday, or a full date).
+/**
+ * Edits an existing payment. The recurrence can be changed just like on
+ * creation, so the due date is re-derived from whichever fields that
+ * recurrence asks for - except when the submitted schedule is the one the
+ * payment already has, in which case its current date is kept. Otherwise
+ * fixing a typo in the name of an overdue monthly bill rolled it forward to
+ * next month and silently hid that it was still unpaid.
+ */
 export async function updatePayment(
   id: string,
   formData: FormData
@@ -184,14 +197,40 @@ export async function updatePayment(
   const parsed = parsePaymentForm(formData);
   if ("error" in parsed) return parsed;
 
+  const { data: existing, error: fetchError } = await supabase
+    .from("payments")
+    .select("due_date, recurrence")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "No encontramos ese pago" };
+
+  const values = { ...parsed.values };
+  const unchangedSchedule = isSameSchedule(existing, values.recurrence, {
+    day: parseIntInRange(formData.get("day_of_month"), 1, 31),
+    month: parseIntInRange(formData.get("month"), 1, 12),
+    weekday: parseIntInRange(formData.get("weekday"), 0, 6),
+  });
+  if (unchangedSchedule) values.due_date = existing.due_date;
+
   const { error } = await supabase
     .from("payments")
-    .update(parsed.values)
+    .update(values)
     .eq("id", id)
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard", "layout");
+}
+
+/** One entry point for the shared create/edit form: an `id` means edit. */
+export async function savePayment(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "").trim();
+  return id ? updatePayment(id, formData) : createPayment(undefined, formData);
 }
 
 export async function deletePayment(id: string) {
@@ -270,6 +309,20 @@ export async function unmarkPaid(id: string) {
   if (deleteError) throw new Error(deleteError.message);
 
   revalidatePath("/dashboard", "layout");
+}
+
+/** Past completions of one payment, newest first - for its detail sheet. */
+export async function listPaymentHistory(paymentId: string): Promise<PaymentHistoryEntry[]> {
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("payment_events")
+    .select("id, completed_at, amount, due_date")
+    .eq("payment_id", paymentId)
+    .eq("user_id", user.id)
+    .order("completed_at", { ascending: false })
+    .limit(12);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PaymentHistoryEntry[];
 }
 
 // Pausing freezes a payment entirely - no reminders, no recurring rollover

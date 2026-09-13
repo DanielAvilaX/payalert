@@ -22,7 +22,7 @@ function LogoIcon({ logo, size = 40 }: { logo: string | null; size?: number }) {
     return (
       <div
         style={{ width: size, height: size }}
-        className="flex shrink-0 items-center justify-center rounded-full bg-white/10"
+        className="flex shrink-0 items-center justify-center rounded-full bg-surface-2"
       >
         <Icon size={size * 0.55} />
       </div>
@@ -96,7 +96,7 @@ export default async function ResumenPage() {
         overdueCount={overdueCount}
       />
 
-      <div className="glass-panel animate-pop-in flex items-center gap-5 rounded-2xl p-6">
+      <div className="card animate-pop-in flex items-center gap-5 rounded-2xl p-6">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg">
           <TrendingUp size={26} />
         </div>
@@ -112,9 +112,9 @@ export default async function ResumenPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="glass-panel animate-pop-in rounded-2xl p-6">
+        <section className="card animate-pop-in rounded-2xl p-6">
           <h2 className="mb-5 flex items-center gap-2 text-lg font-medium">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
               <PieChart size={18} />
             </span>
             Por servicio
@@ -139,9 +139,9 @@ export default async function ResumenPage() {
           )}
         </section>
 
-        <section className="glass-panel animate-pop-in rounded-2xl p-6">
+        <section className="card animate-pop-in rounded-2xl p-6">
           <h2 className="mb-5 flex items-center gap-2 text-lg font-medium">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
               <History size={18} />
             </span>
             Historial reciente

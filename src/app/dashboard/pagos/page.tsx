@@ -1,42 +1,37 @@
-import { Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { PaymentsList } from "@/app/dashboard/payments-list";
-import { AddPaymentModal } from "@/app/dashboard/add-payment-modal";
 import { colombiaToday } from "@/lib/dates";
+import { AddPaymentButton, PaymentsView } from "@/app/dashboard/payments-view";
+import type { Payment } from "@/app/dashboard/payment-types";
 
-export default async function PagosPage() {
+export default async function PagosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pago?: string | string[] }>;
+}) {
+  const { pago } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const { data: payments } = await supabase
     .from("payments")
     .select("*")
     .order("due_date", { ascending: true });
 
-  const defaultDays = (user?.user_metadata?.default_remind_days_before as number | undefined) ?? 3;
-
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-5">
+      {/* On phones the header already says "Mis Pagos" and the floating
+          button adds a payment, so this row is desktop-only. */}
+      <div className="hidden items-end justify-between gap-4 lg:flex">
         <div>
-          <h1 className="text-2xl font-semibold">Tus pagos</h1>
-          <p className="text-sm text-muted">
-            Crea, edita y da seguimiento a tus recordatorios de pago.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">Pagos</h1>
+          <p className="mt-1 text-sm text-muted">Crea, edita y da seguimiento a tus pagos.</p>
         </div>
-        <AddPaymentModal defaultRemindDaysBefore={defaultDays} />
+        <AddPaymentButton />
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-medium">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-            <Wallet size={18} />
-          </span>
-          Tus pagos
-        </h2>
-        <PaymentsList payments={payments ?? []} todayStr={colombiaToday()} />
-      </section>
+      <PaymentsView
+        payments={(payments ?? []) as Payment[]}
+        todayStr={colombiaToday()}
+        initialDetailId={typeof pago === "string" ? pago : undefined}
+      />
     </div>
   );
 }

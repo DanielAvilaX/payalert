@@ -15,7 +15,7 @@ function LogoThumb({ id, size }: { id: LogoId; size: number }) {
     return (
       <div
         style={{ width: size, height: size }}
-        className="flex shrink-0 items-center justify-center rounded-full bg-white/10 text-foreground"
+        className="flex shrink-0 items-center justify-center rounded-full bg-surface-2 text-foreground"
       >
         <Icon size={size * 0.55} />
       </div>
@@ -85,7 +85,7 @@ export function LogoPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="glass-input flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition active:scale-95"
+        className="field flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition active:scale-95"
       >
         <LogoThumb id={value} size={28} />
         <span className="min-w-0 flex-1 text-left break-words">{current.label}</span>
@@ -98,7 +98,7 @@ export function LogoPicker({
           <div
             ref={panelRef}
             style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width }}
-            className="glass-panel z-[200] flex max-h-72 flex-col gap-1 overflow-y-auto rounded-lg p-2 shadow-xl animate-pop-in"
+            className="card z-[200] flex max-h-72 flex-col gap-1 overflow-y-auto rounded-lg p-2 shadow-xl animate-pop-in"
           >
             {LOGO_OPTIONS.map(([id, cfg]) => (
               <button
@@ -108,7 +108,7 @@ export function LogoPicker({
                   onChange(id);
                   setOpen(false);
                 }}
-                className={`flex items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 active:scale-95 ${
+                className={`flex items-center gap-3 rounded-lg p-2 text-left transition hover:bg-surface-2 active:scale-95 ${
                   id === value ? "ring-2 ring-accent" : ""
                 }`}
               >

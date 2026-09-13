@@ -42,6 +42,25 @@ function toISODate(year: number, monthIndex: number, day: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+/** Calendar parts of a YYYY-MM-DD string, read without constructing a local Date. */
+export function dateParts(dateStr: string): {
+  year: number;
+  month: number;
+  day: number;
+  weekday: number;
+} {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return { year, month, day, weekday };
+}
+
+/** Last day of the month containing `dateStr`, as YYYY-MM-DD. */
+export function endOfMonthISO(dateStr: string): string {
+  const [year, month] = dateStr.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return toISODate(year, month - 1, lastDay);
+}
+
 // Adds `months` to a UTC date, clamping the day to the target month's last
 // day (e.g. Jan 31 + 1 month -> Feb 28/29, not an overflow into March).
 export function addMonthsClamped(
@@ -123,4 +142,31 @@ export function nearestWeekdayDueDate(targetDow: number, now: Date = new Date())
 
   const date = new Date(Date.UTC(year, month - 1, day + diff));
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Whether an edit re-submitted the schedule the payment already has.
+ *
+ * Saving re-derives the due date from the form ("the 10th" -> the nearest
+ * 10th), so without this check just renaming an overdue monthly bill moved
+ * it to next month and erased the fact that it was still owed.
+ */
+export function isSameSchedule(
+  existing: { due_date: string; recurrence: string },
+  recurrence: Recurrence,
+  submitted: { day?: number | null; month?: number | null; weekday?: number | null }
+): boolean {
+  if (existing.recurrence !== recurrence) return false;
+  const parts = dateParts(existing.due_date);
+  switch (recurrence) {
+    case "monthly":
+      return submitted.day === parts.day;
+    case "yearly":
+      return submitted.day === parts.day && submitted.month === parts.month;
+    case "weekly":
+      return submitted.weekday === parts.weekday;
+    default:
+      // Full-date recurrences submit the exact date the user can see.
+      return false;
+  }
 }

@@ -7,7 +7,7 @@ export const INTERVAL_OPTIONS = [
   { value: "360", label: "Cada 6 horas" },
 ];
 
-export const ruleInputClass = "glass-input w-full rounded-lg px-3 py-2 text-sm text-foreground";
+export const ruleInputClass = "field w-full rounded-lg px-3 py-2 text-sm text-foreground";
 
 export function ReminderRuleFields({
   defaultDays,

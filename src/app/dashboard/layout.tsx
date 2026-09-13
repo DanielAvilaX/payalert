@@ -1,19 +1,17 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { logout } from "@/app/actions/auth";
-import { SidebarNav } from "@/app/dashboard/sidebar-nav";
-import { MobileNav } from "@/app/dashboard/mobile-nav";
+import { colombiaToday, daysUntil } from "@/lib/dates";
+import { describeDue } from "@/lib/payment-status";
+import { AppShell, type ShellNotification } from "@/app/dashboard/app-shell";
 import { DeleteConfirmProvider } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModalProvider } from "@/app/dashboard/reminders-modal-context";
 import { ToastProvider } from "@/app/dashboard/toast-context";
+import { PaymentUIProvider } from "@/app/dashboard/payment-ui-context";
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// Bills due within this many days show up in the notification bell.
+const BELL_WINDOW_DAYS = 3;
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,74 +21,49 @@ export default async function DashboardLayout({
   // a null dereference instead of just asking the user to sign in again.
   if (!user) redirect("/login");
 
-  const { data: telegramConnection } = await supabase
-    .from("telegram_connections")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: telegramConnection }, { data: openPayments }] = await Promise.all([
+    supabase.from("telegram_connections").select("user_id").eq("user_id", user.id).maybeSingle(),
+    // Only what the bell needs. The layout isn't re-rendered on client-side
+    // navigation, but every mutation revalidates it, so the badge stays true.
+    supabase
+      .from("payments")
+      .select("id, name, due_date")
+      .eq("user_id", user.id)
+      .eq("is_paid", false)
+      .eq("is_paused", false),
+  ]);
+
+  const todayStr = colombiaToday();
+  const notifications: ShellNotification[] = (openPayments ?? [])
+    .map((payment) => ({ payment, days: daysUntil(payment.due_date, todayStr) }))
+    .filter(({ days }) => days <= BELL_WINDOW_DAYS)
+    .sort((a, b) => a.days - b.days)
+    .map(({ payment, days }) => ({
+      id: payment.id,
+      name: payment.name,
+      label: describeDue(payment.due_date, todayStr).label,
+      tone: days < 0 ? "overdue" : days === 0 ? "today" : "soon",
+    }));
+
+  const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
+  const userName = fullName || user.email?.split("@")[0] || "Tu cuenta";
+  const defaultRemindDaysBefore =
+    (user.user_metadata?.default_remind_days_before as number | undefined) ?? 3;
 
   return (
     <ToastProvider>
       <DeleteConfirmProvider>
         <RemindersModalProvider>
-        <div className="min-h-screen">
-          <header className="glass-panel sticky top-0 z-30 flex items-center justify-between px-4 py-3 md:hidden">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="" width={32} height={32} className="rounded-lg" />
-              <span className="font-heading text-lg font-semibold">PayAlert</span>
-            </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 text-sm text-muted transition hover:text-foreground active:scale-95"
-              >
-                <LogOut size={14} />
-                Salir
-              </button>
-            </form>
-          </header>
-
-          <aside className="glass-panel fixed inset-y-0 left-0 z-20 hidden w-72 shrink-0 flex-col justify-between p-5 md:flex">
-            <div className="flex flex-col gap-8">
-              <div className="flex items-center gap-2.5 px-2">
-                <Image src="/logo.png" alt="" width={40} height={40} className="rounded-xl" />
-                <span className="font-heading text-xl font-semibold">PayAlert</span>
-              </div>
-
-              <SidebarNav />
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-xs">
-                <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${telegramConnection ? "bg-accent" : "bg-neutral-600"}`}
-                />
-                <span className="text-muted">
-                  {telegramConnection ? "Telegram conectado" : "Telegram sin conectar"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-                <span className="truncate text-xs text-muted" title={user?.email}>
-                  {user?.email}
-                </span>
-                <form action={logout}>
-                  <button
-                    type="submit"
-                    className="flex shrink-0 items-center gap-1 text-xs text-muted transition hover:text-foreground active:scale-95"
-                  >
-                    <LogOut size={14} />
-                    Salir
-                  </button>
-                </form>
-              </div>
-            </div>
-          </aside>
-
-          <main className="px-4 py-8 pb-24 md:ml-72 md:px-10 md:pb-8">{children}</main>
-
-          <MobileNav />
-        </div>
+          <PaymentUIProvider defaultRemindDaysBefore={defaultRemindDaysBefore}>
+            <AppShell
+              userName={userName}
+              userEmail={user.email ?? ""}
+              telegramConnected={Boolean(telegramConnection)}
+              notifications={notifications}
+            >
+              {children}
+            </AppShell>
+          </PaymentUIProvider>
         </RemindersModalProvider>
       </DeleteConfirmProvider>
     </ToastProvider>

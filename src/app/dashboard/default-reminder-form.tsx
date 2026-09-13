@@ -21,13 +21,13 @@ export function DefaultReminderForm({ defaultValue }: { defaultValue: number }) 
           min={0}
           defaultValue={defaultValue}
           required
-          className="glass-input w-20 rounded-lg px-2 py-1.5 text-foreground"
+          className="field w-20 rounded-lg px-2 py-1.5 text-foreground"
         />
         días antes, por defecto en pagos nuevos
       </label>
 
-      {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
-      {state?.message && <p className="text-sm text-emerald-400">{state.message}</p>}
+      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.message && <p className="text-sm text-emerald-600">{state.message}</p>}
 
       <button
         type="submit"

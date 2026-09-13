@@ -68,7 +68,7 @@ export function RemindersModal({
       titleSlot={
         <div className="flex min-w-0 items-center gap-3">
           {logo.icon ? (
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2">
               <logo.icon size={20} />
             </div>
           ) : (
@@ -113,7 +113,7 @@ export function RemindersModal({
           </ul>
         )}
 
-        <form action={handleAdd} className="flex flex-col gap-3 border-t border-white/10 pt-4">
+        <form action={handleAdd} className="flex flex-col gap-3 border-t border-border pt-4">
           <ReminderRuleFields
             defaultDays={1}
             defaultStart="09:00"
@@ -121,7 +121,7 @@ export function RemindersModal({
             setRepeats={setRepeats}
           />
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             type="submit"

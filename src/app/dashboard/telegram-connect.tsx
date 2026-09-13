@@ -23,7 +23,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
+      <div className="card flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-5">
           <Image
             src="/telegram-connect.png"
@@ -35,7 +35,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
           <div>
             <p className="flex items-center gap-2 font-heading text-lg font-medium">
               Telegram conectado
-              <CheckCircle2 size={18} className="text-emerald-400" />
+              <CheckCircle2 size={18} className="text-emerald-600" />
             </p>
             <p className="text-sm text-muted">Recibirás tus recordatorios directo en tu chat.</p>
           </div>
@@ -43,7 +43,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
         <form action={disconnectTelegram}>
           <button
             type="submit"
-            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20 active:scale-95 sm:w-auto"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 active:scale-95 sm:w-auto"
           >
             <Unlink size={16} />
             Desconectar
@@ -54,7 +54,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
+    <div className="card flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-5">
         <Image
           src="/telegram-connect.png"
