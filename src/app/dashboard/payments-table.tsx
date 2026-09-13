@@ -72,18 +72,20 @@ function PaymentTableRow({
   const status = paymentStatus(payment, todayStr);
 
   return (
-    <tr className={`transition-colors hover:bg-surface-2/50 ${payment.is_paused ? "opacity-60" : ""}`}>
+    <tr
+      onClick={() => onOpenDetail(payment.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpenDetail(payment.id);
+      }}
+      tabIndex={0}
+      aria-label={`Ver detalles de ${payment.name}`}
+      className={`cursor-pointer transition-colors outline-none hover:bg-surface-2/50 focus-visible:bg-surface-2/50 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-inset ${payment.is_paused ? "opacity-60" : ""}`}
+    >
       <td className="py-3 pr-3 pl-4 @3xl:pl-5">
         <div className="flex items-center gap-3">
           <LogoBadge logo={payment.logo} automatic={payment.is_automatic} size={36} />
           <div className="min-w-0">
-            <button
-              type="button"
-              onClick={() => onOpenDetail(payment.id)}
-              className="text-left font-medium break-words transition hover:text-accent"
-            >
-              {payment.name}
-            </button>
+            <p className="font-medium break-words">{payment.name}</p>
             <p className="text-xs text-muted">{RECURRENCE_LABEL[payment.recurrence]}</p>
           </div>
         </div>
@@ -102,14 +104,10 @@ function PaymentTableRow({
       <td className="hidden px-3 py-3 @3xl:table-cell">
         <StatusBadge status={status} />
       </td>
-      <td className="py-3 pr-4 pl-2 @3xl:pr-5">
+      <td className="py-3 pr-4 pl-2 @3xl:pr-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-0.5">
           <QuickPayButton payment={payment} actions={actions} />
-          <PaymentActionsMenu
-            payment={payment}
-            actions={actions}
-            onDetails={() => onOpenDetail(payment.id)}
-          />
+          <PaymentActionsMenu payment={payment} actions={actions} />
         </div>
       </td>
     </tr>

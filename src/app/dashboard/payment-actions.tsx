@@ -5,7 +5,6 @@ import {
   Bell,
   CheckCircle2,
   Ellipsis,
-  Eye,
   Pause,
   Pencil,
   Play,
@@ -132,11 +131,9 @@ export function QuickPayButton({ payment, actions }: { payment: Payment; actions
 export function PaymentActionsMenu({
   payment,
   actions,
-  onDetails,
 }: {
   payment: Payment;
   actions: PaymentActions;
-  onDetails: () => void;
 }) {
   return (
     <FloatingMenu label={`Más acciones para ${payment.name}`} trigger={<Ellipsis size={18} />}>
@@ -147,9 +144,6 @@ export function PaymentActionsMenu({
         };
         return (
           <>
-            <MenuItem icon={<Eye size={16} />} onClick={pick(onDetails)}>
-              Ver detalles
-            </MenuItem>
             <MenuItem icon={<Pencil size={16} />} onClick={pick(actions.edit)}>
               Editar
             </MenuItem>

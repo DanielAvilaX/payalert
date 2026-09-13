@@ -96,10 +96,12 @@ export function ModalShell({
         aria-labelledby={title || titleSlot ? titleId : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`animate-pop-in scrollbar-thin max-h-[92dvh] w-full ${maxWidth} overflow-y-auto rounded-t-3xl border border-border bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl outline-none sm:rounded-2xl sm:p-6`}
+        className={`animate-pop-in scrollbar-thin max-h-[92dvh] w-full ${maxWidth} overflow-y-auto rounded-t-3xl border border-border bg-surface shadow-2xl outline-none sm:rounded-2xl`}
       >
+        {/* Sticky so the payment's name and status stay in view while the
+            body scrolls - a long history list used to carry them off-screen. */}
         {(title || titleSlot) && (
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-surface p-5 pb-4 sm:p-6 sm:pb-4">
             <div id={titleId} className="min-w-0">
               {titleSlot ?? <h2 className="text-lg font-semibold">{title}</h2>}
             </div>
@@ -113,7 +115,9 @@ export function ModalShell({
             </button>
           </div>
         )}
-        {children}
+        <div className="p-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 sm:pt-4">
+          {children}
+        </div>
       </div>
     </div>
   );
