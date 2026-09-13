@@ -30,8 +30,16 @@ export async function POST(request: NextRequest) {
 
   const update: TelegramUpdate = await request.json();
 
-  if (update.callback_query) return handleCallback(update.callback_query);
-  if (update.message) return handleMessage(update.message);
+  // Telegram redelivers any update we don't answer with a 2xx, and it keeps
+  // redelivering. An internal failure here must not turn into an infinite
+  // retry loop, so it's logged and acknowledged rather than thrown - the
+  // writes underneath are idempotent either way.
+  try {
+    if (update.callback_query) return await handleCallback(update.callback_query);
+    if (update.message) return await handleMessage(update.message);
+  } catch (e) {
+    console.error("telegram webhook", e);
+  }
   return NextResponse.json({ ok: true });
 }
 
