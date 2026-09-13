@@ -6,7 +6,7 @@ import {
   QuickPayButton,
   usePaymentActions,
 } from "@/app/dashboard/payment-actions";
-import { LogoBadge, PaymentAmount, StatusBadge } from "@/app/dashboard/payment-parts";
+import { LogoBadge, StatusBadge, formatPaymentAmount } from "@/app/dashboard/payment-parts";
 import { RECURRENCE_LABEL, type Payment } from "@/app/dashboard/payment-types";
 import { formatDueDate, paymentStatus } from "@/lib/payment-status";
 
@@ -45,13 +45,12 @@ export function PaymentsTable({ payments, todayStr, onOpenDetail }: ListProps) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {payments.map((payment, i) => (
+          {payments.map((payment) => (
             <PaymentTableRow
               key={payment.id}
               payment={payment}
               todayStr={todayStr}
               onOpenDetail={onOpenDetail}
-              delay={i * 40}
             />
           ))}
         </tbody>
@@ -64,12 +63,10 @@ function PaymentTableRow({
   payment,
   todayStr,
   onOpenDetail,
-  delay = 0,
 }: {
   payment: Payment;
   todayStr: string;
   onOpenDetail: (id: string) => void;
-  delay?: number;
 }) {
   const actions = usePaymentActions(payment);
   const status = paymentStatus(payment, todayStr);
@@ -94,9 +91,7 @@ function PaymentTableRow({
         </div>
       </td>
       <td className="px-3 py-3 tabular-nums">
-        <span className="whitespace-nowrap">
-          <PaymentAmount payment={payment} delay={delay} />
-        </span>
+        <span className="whitespace-nowrap">{formatPaymentAmount(payment)}</span>
         {payment.amount != null && <span className="ml-1 text-xs text-muted">COP</span>}
       </td>
       <td className="px-3 py-3">
@@ -126,7 +121,7 @@ function PaymentTableRow({
 export function PaymentCards({ payments, todayStr, onOpenDetail }: ListProps) {
   return (
     <ul className="space-y-2.5">
-      {payments.map((payment, i) => {
+      {payments.map((payment) => {
         const status = paymentStatus(payment, todayStr);
         return (
           <li key={payment.id}>
@@ -144,7 +139,7 @@ export function PaymentCards({ payments, todayStr, onOpenDetail }: ListProps) {
               <span className="block min-w-[9rem] flex-1">
                 <span className="block font-medium break-words">{payment.name}</span>
                 <span className="block text-sm text-muted">
-                  <PaymentAmount payment={payment} delay={i * 40} />
+                  {formatPaymentAmount(payment)}
                   {payment.amount != null && " COP"}
                 </span>
                 <span className="block text-xs text-muted">
