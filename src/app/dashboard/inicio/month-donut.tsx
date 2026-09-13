@@ -84,11 +84,15 @@ export function MonthDonut({ segments }: { segments: DonutSegment[] }) {
             ))}
           </svg>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            {/* Plain, not counted-up: it switches instantly on hover/focus
-                between segments, and restarting a count-from-zero on every
-                hover would flicker rather than help. */}
-            <span className="text-3xl leading-none font-semibold tabular-nums">
-              {activeSegment ? activeSegment.value : total}
+            {/* Both readings stay mounted and just swap visibility on hover,
+                so the total's count-up only ever plays once on load - toggling
+                which span is hidden never remounts (and so never restarts)
+                the CountUp underneath, unlike switching what it renders. */}
+            <span className={`text-3xl leading-none font-semibold tabular-nums ${activeSegment ? "hidden" : ""}`}>
+              <CountUp value={total} format="number" />
+            </span>
+            <span className={`text-3xl leading-none font-semibold tabular-nums ${activeSegment ? "" : "hidden"}`}>
+              {activeSegment?.value}
             </span>
             <span className="mt-1 max-w-[6.5rem] text-xs leading-tight text-muted">
               {activeSegment ? activeSegment.label : total === 1 ? "pago" : "pagos"}

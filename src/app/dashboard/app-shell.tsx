@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
+import { PageMotionProvider } from "@/app/dashboard/motion";
 
 export type ShellNotification = {
   id: string;
@@ -128,12 +129,14 @@ export function AppShell({
           </div>
         </header>
 
-        <main
-          key={pathname}
-          className="animate-view-in mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12"
-        >
-          {children}
-        </main>
+        <PageMotionProvider pathname={pathname}>
+          <main
+            key={pathname}
+            className="animate-view-in mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12"
+          >
+            {children}
+          </main>
+        </PageMotionProvider>
       </div>
 
       <BottomNav pathname={pathname} />
