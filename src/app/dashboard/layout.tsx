@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/actions/auth";
@@ -16,11 +17,15 @@ export default async function DashboardLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // The proxy normally redirects first, but a session that expires between
+  // its check and this render would otherwise crash the whole dashboard on
+  // a null dereference instead of just asking the user to sign in again.
+  if (!user) redirect("/login");
 
   const { data: telegramConnection } = await supabase
     .from("telegram_connections")
     .select("user_id")
-    .eq("user_id", user!.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   return (

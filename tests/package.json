@@ -1,0 +1,4 @@
+{
+  "$comment": "Scopes ESM to the test folder. The root package.json can't be type:module without changing how Next.js loads its own config.",
+  "type": "module"
+}

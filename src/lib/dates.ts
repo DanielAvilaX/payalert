@@ -81,10 +81,15 @@ export function nextDueDate(dueDate: string, recurrence: Recurrence): string {
   }
 }
 
+// The three nearest* helpers take `now` so they can be tested against a
+// fixed clock - "what date does this resolve to?" is exactly the logic that
+// has produced timezone bugs here twice, and it can't be pinned down in a
+// test if it reads the wall clock internally.
+
 // Given just a day-of-month (for the common "monthly bill" case), picks the
 // nearest occurrence: this month if that day hasn't passed yet, else next.
-export function nearestMonthlyDueDate(dayOfMonth: number): string {
-  const [year, month, todayDay] = colombiaToday().split("-").map(Number);
+export function nearestMonthlyDueDate(dayOfMonth: number, now: Date = new Date()): string {
+  const [year, month, todayDay] = colombiaToday(now).split("-").map(Number);
   const monthIndex = month - 1;
 
   const monthsAhead = dayOfMonth < todayDay ? 1 : 0;
@@ -93,8 +98,8 @@ export function nearestMonthlyDueDate(dayOfMonth: number): string {
 
 // Given a day + month (no year), picks the nearest occurrence: this year if
 // that date hasn't passed yet, else next year.
-export function nearestYearlyDueDate(day: number, month: number): string {
-  const [year, todayMonth, todayDay] = colombiaToday().split("-").map(Number);
+export function nearestYearlyDueDate(day: number, month: number, now: Date = new Date()): string {
+  const [year, todayMonth, todayDay] = colombiaToday(now).split("-").map(Number);
   const monthIndex = month - 1;
   const todayUtc = Date.UTC(year, todayMonth - 1, todayDay);
 
@@ -109,8 +114,8 @@ export function nearestYearlyDueDate(day: number, month: number): string {
 
 // Given a day of the week (0 = Sunday .. 6 = Saturday, matching Date#getUTCDay),
 // picks the nearest occurrence, counting today if it matches.
-export function nearestWeekdayDueDate(targetDow: number): string {
-  const [year, month, day] = colombiaToday().split("-").map(Number);
+export function nearestWeekdayDueDate(targetDow: number, now: Date = new Date()): string {
+  const [year, month, day] = colombiaToday(now).split("-").map(Number);
   const currentDow = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 
   let diff = targetDow - currentDow;

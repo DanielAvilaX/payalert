@@ -166,6 +166,15 @@ function generalSchedule(remaining: number): GeneralSlot[] {
   ];
 }
 
+// Postgres unique_violation - here it means another concurrent run already
+// claimed this exact notification.
+const UNIQUE_VIOLATION = "23505";
+
+// Sent notifications are only kept long enough to serve as a dedupe ledger;
+// after this they're dead weight in a table that would otherwise grow
+// forever (a single payment can log ~10 rows on its due day alone).
+const LEDGER_RETENTION_DAYS = 120;
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -175,6 +184,9 @@ export async function GET(request: NextRequest) {
   const supabase = createServiceRoleClient();
   const now = new Date();
   const todayStr = colombiaToday(now);
+  // One payment failing (bot blocked, Telegram 5xx, a bad row) must not
+  // abort the whole run and silently starve every payment after it.
+  const errors: string[] = [];
 
   // Recurring payments that were marked paid stay that way (green check,
   // no reminders) until their due date actually passes - only then do they
@@ -188,14 +200,17 @@ export async function GET(request: NextRequest) {
     .neq("recurrence", "none")
     .lt("due_date", todayStr);
 
+  let rolledOver = 0;
   for (const payment of dueRollovers ?? []) {
-    await supabase
+    const { error: rollError } = await supabase
       .from("payments")
       .update({
         due_date: nextDueDate(payment.due_date, payment.recurrence as Recurrence),
         is_paid: false,
       })
       .eq("id", payment.id);
+    if (rollError) errors.push(`rollover ${payment.id}: ${rollError.message}`);
+    else rolledOver += 1;
   }
 
   const { data: paymentsData, error } = await supabase
@@ -235,99 +250,151 @@ export async function GET(request: NextRequest) {
     return chatId;
   }
 
+  /**
+   * Claim-then-send. The ledger row is written *before* the Telegram call,
+   * so the database's unique constraint - not a prior SELECT - is what
+   * decides who gets to send. A read-then-send has a window between the two
+   * where a second run sees nothing and sends a duplicate, and this app has
+   * two independent pingers hitting the endpoint (cron-job.org every 15 min
+   * plus the GitHub Actions workflow), so that window is genuinely reachable.
+   *
+   * If the send then fails, the claim is released so a later run retries
+   * instead of the notification being silently lost forever.
+   *
+   * The claim is keyed on the Colombia calendar day it's sent, not just
+   * payment+kind+due_date - kinds like "overdue" and "gen-far" are meant to
+   * repeat once a day for as long as their window lasts, and due_date
+   * doesn't change while that's happening.
+   */
   async function sendOnce(payment: Payment, kind: string, text: string): Promise<boolean> {
-    // Keyed on the Colombia calendar day it's sent, not just payment+kind+
-    // due_date - kinds like "overdue" and "gen-far" are meant to repeat
-    // once a day for as long as their window lasts, and due_date doesn't
-    // change while that's happening, so without sent_on in the key the
-    // first send would block every later day's send too.
-    const { data: existing } = await supabase
-      .from("notification_log")
-      .select("id")
-      .eq("payment_id", payment.id)
-      .eq("kind", kind)
-      .eq("due_date", payment.due_date)
-      .eq("sent_on", todayStr)
-      .maybeSingle();
-    if (existing) return false;
-
     const chatId = await chatIdFor(payment.user_id);
     if (!chatId) return false;
 
-    await sendTelegramMessage(chatId, text);
-    await supabase.from("notification_log").insert({
-      payment_id: payment.id,
-      user_id: payment.user_id,
-      kind,
-      due_date: payment.due_date,
-      sent_on: todayStr,
-    });
-    return true;
+    const { data: claim, error: claimError } = await supabase
+      .from("notification_log")
+      .insert({
+        payment_id: payment.id,
+        user_id: payment.user_id,
+        kind,
+        due_date: payment.due_date,
+        sent_on: todayStr,
+      })
+      .select("id")
+      .single();
+
+    if (claimError) {
+      // Someone else already claimed it (or is mid-send) - not an error.
+      if (claimError.code !== UNIQUE_VIOLATION) {
+        errors.push(`claim ${payment.name}/${kind}: ${claimError.message}`);
+      }
+      return false;
+    }
+
+    try {
+      await sendTelegramMessage(chatId, text);
+      return true;
+    } catch (e) {
+      await supabase.from("notification_log").delete().eq("id", claim.id);
+      throw e;
+    }
+  }
+
+  /** Same claim-then-send contract as sendOnce, for custom rule schedules. */
+  async function fireRuleOnce(
+    payment: Payment,
+    rule: ReminderRule,
+    fireAt: Date
+  ): Promise<boolean> {
+    const chatId = await chatIdFor(payment.user_id);
+    if (!chatId) return false;
+
+    const { data: claim, error: claimError } = await supabase
+      .from("reminder_fires")
+      .insert({
+        rule_id: rule.id,
+        payment_id: payment.id,
+        user_id: payment.user_id,
+        due_date: payment.due_date,
+        fire_at: fireAt.toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (claimError) {
+      if (claimError.code !== UNIQUE_VIOLATION) {
+        errors.push(`claim rule ${rule.id}: ${claimError.message}`);
+      }
+      return false;
+    }
+
+    try {
+      await sendTelegramMessage(chatId, ruleMessage(payment, rule, fireAt));
+      return true;
+    } catch (e) {
+      await supabase.from("reminder_fires").delete().eq("id", claim.id);
+      throw e;
+    }
   }
 
   let sent = 0;
 
   for (const payment of payments) {
-    const remaining = daysUntil(payment.due_date, todayStr);
-    const rules = rulesByPayment.get(payment.id) ?? [];
+    try {
+      const remaining = daysUntil(payment.due_date, todayStr);
+      const rules = rulesByPayment.get(payment.id) ?? [];
 
-    // Overdue always fires (once a day) regardless of custom rules - the
-    // escalating schedules only cover up to the due day itself.
-    if (remaining < 0) {
-      const sentNow = await sendOnce(
-        payment,
-        "overdue",
-        `⚠️ <b>${payment.name}</b>${formatAmount(payment)} venció el ${payment.due_date} y sigue sin marcarse como pagado.`
-      );
-      if (sentNow) sent += 1;
-    }
+      // Overdue always fires (once a day) regardless of custom rules - the
+      // escalating schedules only cover up to the due day itself.
+      if (remaining < 0) {
+        const sentNow = await sendOnce(
+          payment,
+          "overdue",
+          `⚠️ <b>${payment.name}</b>${formatAmount(payment)} venció el ${payment.due_date} y sigue sin marcarse como pagado.`
+        );
+        if (sentNow) sent += 1;
+      }
 
-    if (rules.length === 0) {
-      // No custom schedule - use the automatic default: starting at
-      // remind_days_before, escalating in frequency/urgency each day.
-      if (remaining >= 0 && remaining <= payment.remind_days_before) {
-        for (const slot of generalSchedule(remaining)) {
-          const fireAt = localToUtc(todayStr, slot.time);
+      if (rules.length === 0) {
+        // No custom schedule - use the automatic default: starting at
+        // remind_days_before, escalating in frequency/urgency each day.
+        if (remaining >= 0 && remaining <= payment.remind_days_before) {
+          for (const slot of generalSchedule(remaining)) {
+            const fireAt = localToUtc(todayStr, slot.time);
+            if (fireAt > now) continue;
+            if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
+
+            const sentNow = await sendOnce(payment, slot.kind, slot.text(payment, remaining));
+            if (sentNow) sent += 1;
+          }
+        }
+        continue;
+      }
+
+      // Custom escalating schedule.
+      for (const rule of rules) {
+        for (const fireAt of fireTimesForRule(rule, payment.due_date)) {
           if (fireAt > now) continue;
           if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
 
-          const sentNow = await sendOnce(payment, slot.kind, slot.text(payment, remaining));
-          if (sentNow) sent += 1;
+          if (await fireRuleOnce(payment, rule, fireAt)) sent += 1;
         }
       }
-      continue;
-    }
-
-    // Custom escalating schedule.
-    for (const rule of rules) {
-      for (const fireAt of fireTimesForRule(rule, payment.due_date)) {
-        if (fireAt > now) continue;
-        if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
-
-        const { data: existing } = await supabase
-          .from("reminder_fires")
-          .select("id")
-          .eq("rule_id", rule.id)
-          .eq("due_date", payment.due_date)
-          .eq("fire_at", fireAt.toISOString())
-          .maybeSingle();
-        if (existing) continue;
-
-        const chatId = await chatIdFor(payment.user_id);
-        if (!chatId) continue;
-
-        await sendTelegramMessage(chatId, ruleMessage(payment, rule, fireAt));
-        await supabase.from("reminder_fires").insert({
-          rule_id: rule.id,
-          payment_id: payment.id,
-          user_id: payment.user_id,
-          due_date: payment.due_date,
-          fire_at: fireAt.toISOString(),
-        });
-        sent += 1;
-      }
+    } catch (e) {
+      errors.push(`${payment.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
-  return NextResponse.json({ ok: true, checked: payments.length, sent });
+  // Prune the dedupe ledgers. Cheap no-op on most runs thanks to the
+  // sent_on / due_date indexes, so it doesn't need its own schedule.
+  const cutoff = subtractDays(todayStr, LEDGER_RETENTION_DAYS);
+  await supabase.from("notification_log").delete().lt("sent_on", cutoff);
+  await supabase.from("reminder_fires").delete().lt("due_date", cutoff);
+
+  return NextResponse.json({
+    ok: errors.length === 0,
+    checked: payments.length,
+    sent,
+    rolledOver,
+    ...(errors.length ? { errors } : {}),
+  });
 }
