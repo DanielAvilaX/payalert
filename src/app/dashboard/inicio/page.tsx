@@ -6,6 +6,7 @@ import { summarizeMonth } from "@/lib/metrics";
 import { AddPaymentButton, PaymentsPreview } from "@/app/dashboard/payments-view";
 import { MonthDonut, type DonutSegment } from "@/app/dashboard/inicio/month-donut";
 import type { Payment } from "@/app/dashboard/payment-types";
+import { Reveal } from "@/app/dashboard/motion";
 
 const KPI_TONES = {
   paid: { card: "border-emerald-100 bg-emerald-50/60", icon: "bg-emerald-100 text-emerald-600" },
@@ -28,7 +29,7 @@ function KpiCard({
 }) {
   const classes = KPI_TONES[tone];
   return (
-    <div className={`card p-4 ${classes.card}`}>
+    <div className={`card h-full p-4 ${classes.card}`}>
       <div className="flex items-center gap-2.5">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${classes.icon}`}>
           <Icon size={18} />
@@ -109,44 +110,50 @@ export default async function InicioPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <Reveal>
         <h1 className="text-2xl font-semibold tracking-tight">
           ¡Hola{firstName ? `, ${firstName}` : ""}!
         </h1>
         <p className="mt-1 text-sm text-muted">Aquí tienes un resumen de tus pagos.</p>
-      </div>
+      </Reveal>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
-            <KpiCard
-              label="Pagos pagados"
-              value={summary.paid}
-              hint="Este mes"
-              icon={CheckCircle2}
-              tone="paid"
-            />
-            <KpiCard
-              label="Pendientes"
-              value={openThisMonth}
-              hint={
-                summary.overdue
-                  ? `Incluye ${summary.overdue} vencido${summary.overdue === 1 ? "" : "s"}`
-                  : "Este mes"
-              }
-              icon={Clock}
-              tone="pending"
-            />
-            <KpiCard
-              label="Próximos a vencer"
-              value={summary.soon}
-              hint="En los próximos 7 días"
-              icon={CalendarClock}
-              tone="soon"
-            />
+            <Reveal delay={60}>
+              <KpiCard
+                label="Pagos pagados"
+                value={summary.paid}
+                hint="Este mes"
+                icon={CheckCircle2}
+                tone="paid"
+              />
+            </Reveal>
+            <Reveal delay={130}>
+              <KpiCard
+                label="Pendientes"
+                value={openThisMonth}
+                hint={
+                  summary.overdue
+                    ? `Incluye ${summary.overdue} vencido${summary.overdue === 1 ? "" : "s"}`
+                    : "Este mes"
+                }
+                icon={Clock}
+                tone="pending"
+              />
+            </Reveal>
+            <Reveal delay={200}>
+              <KpiCard
+                label="Próximos a vencer"
+                value={summary.soon}
+                hint="En los próximos 7 días"
+                icon={CalendarClock}
+                tone="soon"
+              />
+            </Reveal>
           </div>
 
-          <section className="space-y-4">
+          <Reveal delay={260} className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Tus pagos</h2>
               <div className="flex items-center gap-3">
@@ -161,12 +168,16 @@ export default async function InicioPage() {
               </div>
             </div>
             <PaymentsPreview payments={payments} todayStr={todayStr} />
-          </section>
+          </Reveal>
         </div>
 
         <div className="space-y-6">
-          <MonthDonut segments={segments} />
-          <TelegramCard connected={Boolean(telegramResult.data)} />
+          <Reveal delay={200}>
+            <MonthDonut segments={segments} />
+          </Reveal>
+          <Reveal delay={300}>
+            <TelegramCard connected={Boolean(telegramResult.data)} />
+          </Reveal>
         </div>
       </div>
     </div>

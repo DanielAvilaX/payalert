@@ -23,7 +23,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
 
   if (connected) {
     return (
-      <div className="card flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
+      <div className="card flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-5">
           <Image
             src="/telegram-connect.png"
@@ -54,7 +54,7 @@ export function TelegramConnect({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="card flex flex-col gap-4 rounded-2xl p-6 animate-pop-in sm:flex-row sm:items-center sm:justify-between">
+    <div className="card flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-5">
         <Image
           src="/telegram-connect.png"

@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
 // (/dashboard still exists and still forwards, since login, signup and the
 // proxy all point at it.)
 export default function Home() {
-  redirect("/dashboard/pagos");
+  redirect("/dashboard/inicio");
 }

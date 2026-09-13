@@ -4,6 +4,7 @@ import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { DefaultReminderForm } from "@/app/dashboard/default-reminder-form";
 import { IncomeForm } from "@/app/dashboard/income-form";
 import { RulesOverview, type RuleWithPayment } from "@/app/dashboard/rules-overview";
+import { Reveal } from "@/app/dashboard/motion";
 
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -40,33 +41,41 @@ export default async function ConfiguracionPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="hidden lg:block">
+      <Reveal className="hidden lg:block">
         <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
         <p className="mt-1 text-sm text-muted">
           Telegram, preferencias y reglas personalizadas de recordatorios.
         </p>
-      </div>
+      </Reveal>
 
-      <TelegramConnect connected={Boolean(telegramConnection)} />
+      <Reveal delay={60}>
+        <TelegramConnect connected={Boolean(telegramConnection)} />
+      </Reveal>
 
-      <section className="card p-5 sm:p-6">
-        <SectionTitle icon={<Settings size={18} />}>Preferencias generales</SectionTitle>
-        <DefaultReminderForm defaultValue={defaultDays} />
-      </section>
+      <Reveal delay={120}>
+        <section className="card p-5 sm:p-6">
+          <SectionTitle icon={<Settings size={18} />}>Preferencias generales</SectionTitle>
+          <DefaultReminderForm defaultValue={defaultDays} />
+        </section>
+      </Reveal>
 
-      <section className="card p-5 sm:p-6">
-        <SectionTitle icon={<Wallet size={18} />}>Tus finanzas</SectionTitle>
-        <IncomeForm defaultValue={monthlyIncome} />
-      </section>
+      <Reveal delay={180}>
+        <section className="card p-5 sm:p-6">
+          <SectionTitle icon={<Wallet size={18} />}>Tus finanzas</SectionTitle>
+          <IncomeForm defaultValue={monthlyIncome} />
+        </section>
+      </Reveal>
 
-      <section className="card p-5 sm:p-6">
-        <SectionTitle icon={<Bell size={18} />}>Reglas personalizadas</SectionTitle>
-        <p className="mb-4 text-sm text-muted">
-          Cada pago puede tener su propio horario escalonado de avisos (desde el detalle del pago,
-          en &quot;Avisos&quot;). Aquí ves y administras todas las reglas que ya creaste.
-        </p>
-        <RulesOverview rules={(rules ?? []) as RuleWithPayment[]} />
-      </section>
+      <Reveal delay={240}>
+        <section className="card p-5 sm:p-6">
+          <SectionTitle icon={<Bell size={18} />}>Reglas personalizadas</SectionTitle>
+          <p className="mb-4 text-sm text-muted">
+            Cada pago puede tener su propio horario escalonado de avisos (desde el detalle del pago,
+            en &quot;Avisos&quot;). Aquí ves y administras todas las reglas que ya creaste.
+          </p>
+          <RulesOverview rules={(rules ?? []) as RuleWithPayment[]} />
+        </section>
+      </Reveal>
     </div>
   );
 }

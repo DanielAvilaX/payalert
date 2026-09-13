@@ -7,6 +7,7 @@ import { sortPayments, type Payment } from "@/app/dashboard/payment-types";
 import { PaymentCards, PaymentsTable } from "@/app/dashboard/payments-table";
 import { PaymentDetailSheet } from "@/app/dashboard/payment-detail-sheet";
 import { usePaymentUI } from "@/app/dashboard/payment-ui-context";
+import { Reveal } from "@/app/dashboard/motion";
 
 type FilterKey = "all" | "pending" | "paid";
 
@@ -101,7 +102,10 @@ export function PaymentsView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      {/* Only the toolbar and the list bounce in: the floating "+" and the
+          detail sheet below are position:fixed, and a transform on an
+          ancestor would drag them along for the length of the animation. */}
+      <Reveal delay={60} className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div
           role="tablist"
           aria-label="Filtrar pagos"
@@ -140,8 +144,9 @@ export function PaymentsView({
             className="field w-full rounded-xl py-2.5 pr-3 pl-9 text-sm"
           />
         </div>
-      </div>
+      </Reveal>
 
+      <Reveal delay={120} className="space-y-4">
       {visible.length ? (
         <>
           <div className="hidden lg:block">
@@ -196,6 +201,7 @@ export function PaymentsView({
           {payments.length === 0 && <AddPaymentButton className="mt-3" />}
         </div>
       )}
+      </Reveal>
 
       <PaymentDetailSheet payment={detailPayment} todayStr={todayStr} onClose={detail.close} />
 

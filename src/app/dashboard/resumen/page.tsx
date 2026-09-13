@@ -33,7 +33,7 @@ import {
 import { formatDueDate, formatMonthName, formatMonthShort } from "@/lib/payment-status";
 import { LogoBadge } from "@/app/dashboard/payment-parts";
 import { SpendTrend } from "@/app/dashboard/resumen/spend-trend";
-import { CountUp, Reveal } from "@/app/dashboard/resumen/motion";
+import { CountUp, Reveal } from "@/app/dashboard/motion";
 import type { Payment } from "@/app/dashboard/payment-types";
 
 const SERIES_MONTHS = 6;
