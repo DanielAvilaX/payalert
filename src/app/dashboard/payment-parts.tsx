@@ -4,6 +4,7 @@ import { logoConfig } from "@/lib/logos";
 import { formatCOP } from "@/lib/format";
 import type { PaymentStatus } from "@/lib/payment-status";
 import type { Payment } from "@/app/dashboard/payment-types";
+import { CountUp } from "@/app/dashboard/motion";
 
 export function LogoBadge({
   logo,
@@ -63,4 +64,26 @@ export function StatusBadge({ status }: { status: PaymentStatus }) {
 export function formatPaymentAmount(payment: Pick<Payment, "amount" | "amount_is_variable">) {
   if (payment.amount == null) return "—";
   return `${payment.amount_is_variable ? "~" : ""}${formatCOP(payment.amount)}`;
+}
+
+/**
+ * Same figure as `formatPaymentAmount`, but counting up from zero the first
+ * time it scrolls into view - for the lists on Pagos and Inicio, where a
+ * page of rows lands on screen at once. Due dates never animate this way;
+ * a ticking date is unreadable and there's nothing to "count" toward.
+ */
+export function PaymentAmount({
+  payment,
+  delay = 0,
+}: {
+  payment: Pick<Payment, "amount" | "amount_is_variable">;
+  delay?: number;
+}) {
+  if (payment.amount == null) return <>—</>;
+  return (
+    <>
+      {payment.amount_is_variable && "~"}
+      <CountUp value={Number(payment.amount)} delay={delay} />
+    </>
+  );
 }

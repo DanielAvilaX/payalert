@@ -6,7 +6,7 @@ import { summarizeMonth } from "@/lib/metrics";
 import { AddPaymentButton, PaymentsPreview } from "@/app/dashboard/payments-view";
 import { MonthDonut, type DonutSegment } from "@/app/dashboard/inicio/month-donut";
 import type { Payment } from "@/app/dashboard/payment-types";
-import { Reveal } from "@/app/dashboard/motion";
+import { CountUp, Reveal } from "@/app/dashboard/motion";
 
 const KPI_TONES = {
   paid: { card: "border-emerald-100 bg-emerald-50/60", icon: "bg-emerald-100 text-emerald-600" },
@@ -36,7 +36,9 @@ function KpiCard({
         </span>
         <p className="text-sm font-medium text-muted">{label}</p>
       </div>
-      <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
+      <p className="mt-3 text-3xl font-semibold tracking-tight">
+        <CountUp value={value} format="number" />
+      </p>
       <p className="mt-0.5 text-xs text-muted">{hint}</p>
     </div>
   );

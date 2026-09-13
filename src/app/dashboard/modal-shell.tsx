@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 // Open dialogs, innermost last. Escape should only ever close the one on
@@ -18,6 +19,11 @@ const openStack: object[] = [];
  *
  * On phones it docks to the bottom as a sheet - the thumb-reachable pattern
  * native apps use - and centres as a regular dialog from `sm` up.
+ *
+ * Portalled to <body>: rendered in place, a fixed-position ancestor (a page
+ * section mid-entrance-animation, a future `filter`/`contain` on `<main>`)
+ * would make the backdrop cover only that ancestor's box instead of the
+ * viewport - the same bug the floating menus already had to be fixed for.
  */
 export function ModalShell({
   open,
@@ -82,11 +88,17 @@ export function ModalShell({
     };
   }, [open]);
 
-  if (!open) return null;
+  // document.body doesn't exist during SSR; a portal here renders nothing
+  // there and nothing at this component's own position either way, so this
+  // guard alone is SSR-safe without needing to delay to a mount effect.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4"
+      // Blur only, never a dark tint: the page behind stays its own colours,
+      // just soft, so the dialog reads as "in front of" rather than "on a
+      // dimmed scrim".
+      className="fixed inset-0 z-[100] flex items-end justify-center backdrop-blur-md sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -119,6 +131,7 @@ export function ModalShell({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

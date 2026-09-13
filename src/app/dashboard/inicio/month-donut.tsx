@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CountUp } from "@/app/dashboard/motion";
 
 export type DonutSegment = { key: string; label: string; value: number; color: string };
 
@@ -83,7 +84,10 @@ export function MonthDonut({ segments }: { segments: DonutSegment[] }) {
             ))}
           </svg>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-3xl leading-none font-semibold">
+            {/* Plain, not counted-up: it switches instantly on hover/focus
+                between segments, and restarting a count-from-zero on every
+                hover would flicker rather than help. */}
+            <span className="text-3xl leading-none font-semibold tabular-nums">
               {activeSegment ? activeSegment.value : total}
             </span>
             <span className="mt-1 max-w-[6.5rem] text-xs leading-tight text-muted">
@@ -93,7 +97,7 @@ export function MonthDonut({ segments }: { segments: DonutSegment[] }) {
         </div>
 
         <ul className="w-full space-y-2.5 text-sm">
-          {legend.map((segment) => (
+          {legend.map((segment, i) => (
             <li
               key={segment.key}
               onMouseEnter={() => setActive(segment.key)}
@@ -106,7 +110,9 @@ export function MonthDonut({ segments }: { segments: DonutSegment[] }) {
                 style={{ background: segment.color }}
               />
               <span className="flex-1 text-muted">{segment.label}</span>
-              <span className="font-medium tabular-nums">{segment.value}</span>
+              <span className="font-medium">
+                <CountUp value={segment.value} format="number" delay={i * 60} />
+              </span>
             </li>
           ))}
         </ul>
