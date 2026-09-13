@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { answerCallbackQuery, editMessageText, sendTelegramMessage } from "@/lib/telegram";
-import { settlePayment } from "@/lib/payments";
+import {
+  answerCallbackQuery,
+  appLink,
+  editMessageText,
+  escapeHtml,
+  sendTelegramMessage,
+} from "@/lib/telegram";
+import { settlePayment, type SettledPayment } from "@/lib/payments";
+import { nextDueDate, type Recurrence } from "@/lib/dates";
+import { formatCOP } from "@/lib/format";
+import { formatDueDate } from "@/lib/payment-status";
 
 // Telegram Update payload - only the fields we use.
 type TelegramUpdate = {
@@ -43,6 +52,28 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+/** What the reminder turns into once it's been paid, as drawn in the redesign. */
+function confirmationText(payment: SettledPayment): string {
+  const lines = ["✅ <b>¡Pago marcado como realizado!</b>", "", `<b>${escapeHtml(payment.name)}</b>`];
+  if (payment.amount != null) lines.push(formatCOP(payment.amount));
+  lines.push("");
+
+  if (payment.recurrence && payment.recurrence !== "none") {
+    const next = nextDueDate(payment.due_date, payment.recurrence as Recurrence);
+    lines.push(`Tu próximo cobro es el ${formatDueDate(next, true)}.`);
+  } else {
+    lines.push("Era un pago único, así que no te lo volveré a recordar.");
+  }
+
+  if (payment.amount_is_variable) {
+    lines.push(
+      "",
+      "<i>Este pago tiene monto variable: ajusta el valor real en la app para que tu resumen cuadre.</i>"
+    );
+  }
+  return lines.join("\n");
+}
+
 /**
  * The "✅ Ya lo pagué" button under a reminder.
  *
@@ -81,16 +112,13 @@ async function handleCallback(callback: NonNullable<TelegramUpdate["callback_que
   }
 
   await answerCallbackQuery(callback.id, "¡Listo! Marcado como pagado.");
-  // Rewrite the reminder so the chat doesn't keep a stale "vence hoy" with a
-  // live button under it.
+
+  const details = appLink(`/dashboard/pagos?pago=${paymentId}`);
   await editMessageText(
     chatId,
     callback.message!.message_id,
-    `✅ <b>${result.payment.name}</b> quedó marcado como pagado.${
-      result.payment.amount_is_variable
-        ? "\n\n<i>Este pago tiene monto variable: ajusta el valor real en la app para que el resumen del mes cuadre.</i>"
-        : ""
-    }`
+    confirmationText(result.payment),
+    details ? [[{ text: "Ver detalles", url: details }]] : undefined
   );
 
   return NextResponse.json({ ok: true });
