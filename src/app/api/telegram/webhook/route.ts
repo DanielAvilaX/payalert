@@ -19,7 +19,18 @@ export async function POST(request: NextRequest) {
 
   const update: TelegramUpdate = await request.json();
   const message = update.message;
-  if (!message?.text?.startsWith("/start ")) {
+  if (!message?.text) return NextResponse.json({ ok: true });
+
+  // Anything that isn't the deep link used to get silence, which reads as a
+  // broken bot to anyone who opens the chat and says hello - or who taps
+  // the bot's own "Start" button, since that sends a bare "/start".
+  if (!message.text.startsWith("/start ")) {
+    await sendTelegramMessage(
+      message.chat.id,
+      "Soy el bot de PayAlert: te aviso aquí cuando se acerque la fecha de tus pagos.\n\n" +
+        "Para conectar tu cuenta, entra a PayAlert, ve a <b>Configuración</b> y toca " +
+        "<b>Generar enlace de conexión</b>. Ese enlace te trae de vuelta acá y deja todo listo."
+    );
     return NextResponse.json({ ok: true });
   }
 
