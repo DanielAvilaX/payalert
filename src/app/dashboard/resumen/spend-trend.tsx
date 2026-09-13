@@ -91,12 +91,13 @@ export function SpendTrend({ points }: { points: TrendPoint[] }) {
                     </span>
                   )}
                   <span
-                    className={`block w-3/5 rounded-t-[4px] transition-opacity ${
+                    className={`bar-grow-y block w-3/5 rounded-t-[4px] transition-opacity ${
                       current ? "bg-accent" : "bg-indigo-300"
                     } ${active !== null && active !== i ? "opacity-45" : ""}`}
                     style={{
                       height: point.total > 0 ? Math.max(height, 2) : 0,
                       maxWidth: BAR_MAX_WIDTH,
+                      animationDelay: `${300 + i * 80}ms`,
                     }}
                   />
                 </button>

@@ -16,35 +16,45 @@ type ListProps = {
   onOpenDetail: (id: string) => void;
 };
 
-/** Desktop: the mockup's table - name, amount, due date, state, actions. */
+/**
+ * Desktop: the mockup's table - name, amount, due date, state, actions.
+ *
+ * Never scrolls sideways. It sizes itself to its own card rather than the
+ * viewport (a container query), because the same table sits full-width on
+ * Pagos but shares the row with the month donut on Inicio. When the card is
+ * narrow, the state badge moves under the due date instead of taking its own
+ * column - same information, one column fewer.
+ */
 export function PaymentsTable({ payments, todayStr, onOpenDetail }: ListProps) {
   return (
-    <div className="card overflow-hidden">
-      {/* Scrolls sideways inside the card rather than squeezing the columns
-          when the viewport is narrow or the system font is large. */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2/60 text-left text-xs text-muted">
-              <th scope="col" className="px-5 py-3 font-medium">Nombre</th>
-              <th scope="col" className="px-5 py-3 font-medium">Monto</th>
-              <th scope="col" className="px-5 py-3 font-medium">Vencimiento</th>
-              <th scope="col" className="px-5 py-3 font-medium">Estado</th>
-              <th scope="col" className="px-5 py-3 text-right font-medium">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {payments.map((payment) => (
-              <PaymentTableRow
-                key={payment.id}
-                payment={payment}
-                todayStr={todayStr}
-                onOpenDetail={onOpenDetail}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="card @container overflow-hidden">
+      <table className="w-full table-fixed text-sm">
+        <thead>
+          <tr className="border-b border-border bg-surface-2/60 text-left text-xs text-muted">
+            <th scope="col" className="py-3 pr-3 pl-4 font-medium @3xl:pl-5">Nombre</th>
+            <th scope="col" className="w-[8.5rem] px-3 py-3 font-medium @3xl:w-[10rem]">Monto</th>
+            <th scope="col" className="w-[8.75rem] px-3 py-3 font-medium @3xl:w-[10rem]">
+              Vencimiento
+            </th>
+            <th scope="col" className="hidden w-[8rem] px-3 py-3 font-medium @3xl:table-cell">
+              Estado
+            </th>
+            <th scope="col" className="w-[5.5rem] py-3 pr-4 pl-2 text-right font-medium @3xl:pr-5">
+              <span className="sr-only">Acciones</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {payments.map((payment) => (
+            <PaymentTableRow
+              key={payment.id}
+              payment={payment}
+              todayStr={todayStr}
+              onOpenDetail={onOpenDetail}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -63,7 +73,7 @@ function PaymentTableRow({
 
   return (
     <tr className={`transition-colors hover:bg-surface-2/50 ${payment.is_paused ? "opacity-60" : ""}`}>
-      <td className="px-5 py-3">
+      <td className="py-3 pr-3 pl-4 @3xl:pl-5">
         <div className="flex items-center gap-3">
           <LogoBadge logo={payment.logo} automatic={payment.is_automatic} size={36} />
           <div className="min-w-0">
@@ -78,18 +88,21 @@ function PaymentTableRow({
           </div>
         </div>
       </td>
-      <td className="px-5 py-3 whitespace-nowrap tabular-nums">
-        {formatPaymentAmount(payment)}
+      <td className="px-3 py-3 tabular-nums">
+        <span className="whitespace-nowrap">{formatPaymentAmount(payment)}</span>
         {payment.amount != null && <span className="ml-1 text-xs text-muted">COP</span>}
       </td>
-      <td className="px-5 py-3 whitespace-nowrap">
-        <p className="tabular-nums">{formatDueDate(payment.due_date, true)}</p>
+      <td className="px-3 py-3">
+        <p className="whitespace-nowrap tabular-nums">{formatDueDate(payment.due_date, true)}</p>
         <p className="text-xs text-muted">{status.detail}</p>
+        <div className="mt-1.5 @3xl:hidden">
+          <StatusBadge status={status} />
+        </div>
       </td>
-      <td className="px-5 py-3">
+      <td className="hidden px-3 py-3 @3xl:table-cell">
         <StatusBadge status={status} />
       </td>
-      <td className="px-5 py-3">
+      <td className="py-3 pr-4 pl-2 @3xl:pr-5">
         <div className="flex items-center justify-end gap-0.5">
           <QuickPayButton payment={payment} actions={actions} />
           <PaymentActionsMenu
