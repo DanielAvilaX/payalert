@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
           {pending ? "Enviando…" : "Enviar enlace"}
         </button>
 
-        <p className="text-center text-sm text-zinc-400">
+        <p className="text-center text-sm text-muted">
           <Link href="/login" className={authLinkClass}>
             Volver a iniciar sesión
           </Link>

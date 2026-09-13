@@ -1,42 +1,69 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { LoginNetwork } from "./login-network";
+import { Bell, Check, TrendingUp } from "lucide-react";
+import { AlertGrid } from "./alert-grid";
 import { TypewriterRotator } from "./typewriter-rotator";
 
-// Always dark on purpose, whatever the rest of the app or the OS theme is:
-// the entrance should look identical on every machine, so nothing here uses
-// a `dark:` variant or the app's theme tokens - the colours are literal.
-export const authLabelClass = "block text-sm font-medium text-zinc-300";
-export const authInputClass =
-  "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 transition-colors placeholder:text-zinc-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-900/40";
+// The same light palette and tokens as the dashboard, so signing in feels
+// like the first screen of the app rather than a separate site.
+export const authLabelClass = "block text-sm font-medium text-foreground";
+export const authInputClass = "field mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-sm";
 export const authButtonClass =
-  "flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-r from-indigo-600 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:hover:brightness-100";
-export const authLinkClass = "font-medium text-indigo-400 hover:underline";
+  "flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:hover:brightness-100";
+export const authLinkClass = "font-medium text-accent hover:underline";
 export const authErrorClass =
-  "animate-fade-in-up rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300";
+  "animate-fade-in-up rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100 ring-inset";
 export const authNoticeClass =
-  "animate-fade-in-up rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300";
+  "animate-fade-in-up rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-100 ring-inset";
 
-function Brand({ onDark = true }: { onDark?: boolean }) {
+function Brand({ tone }: { tone: "light" | "dark" }) {
+  const dark = tone === "dark";
   return (
-    <div className="flex items-center gap-2">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-lg shadow-indigo-500/30">
-        <Image src="/logo.png" alt="PayAlert" width={28} height={28} className="h-full w-full rounded-lg object-contain" />
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-lg shadow-indigo-500/25">
+        <Image src="/logo.png" alt="" width={32} height={32} className="h-full w-full rounded-lg object-contain" />
       </span>
-      <span className={`text-lg font-bold tracking-tight ${onDark ? "text-white" : "text-zinc-50"}`}>
-        Pay
-        <span className="bg-linear-to-r from-indigo-400 to-violet-300 bg-clip-text text-transparent">
-          Alert
-        </span>
+      <span className={`text-xl font-bold tracking-tight ${dark ? "text-white" : "text-foreground"}`}>
+        Pay<span className={dark ? "text-indigo-300" : "text-accent"}>Alert</span>
       </span>
     </div>
   );
 }
 
+/** A glassy notification floating over the footage - what the app actually sends you. */
+function FloatingNotice({
+  className,
+  delay,
+  icon,
+  title,
+  detail,
+}: {
+  className: string;
+  delay: string;
+  icon: ReactNode;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div aria-hidden className={`animate-chip-in absolute z-10 ${className}`} style={{ animationDelay: delay }}>
+      <div
+        className="animate-chip-float flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 py-2.5 pr-4 pl-2.5 text-white shadow-2xl shadow-indigo-950/50 backdrop-blur-md"
+        style={{ animationDelay: delay }}
+      >
+        {icon}
+        <div className="min-w-0">
+          <p className="text-sm leading-tight font-semibold">{title}</p>
+          <p className="mt-0.5 text-xs text-indigo-100/75">{detail}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
- * The shared entrance for login, signup and password recovery - the same
- * composition as the Job Hunter AI login: footage on the left, the form on
- * the right over drifting colour and a cursor-reactive node network.
+ * The shared entrance for login, signup and password recovery: footage and
+ * brand on the left, the form on the right over a grid of "days" that ping
+ * with alerts and payments.
  */
 export function AuthShell({
   title,
@@ -48,65 +75,107 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-h-dvh flex-1 grid-cols-1 bg-zinc-950 md:grid-cols-2">
-      {/* Left: the footage. Hidden on phones - neither the layout nor the
-          download make sense on a narrow screen. Muted and looping, under
-          two gradients so it reads as atmosphere rather than the subject.
-          The clip was shot on pure black, so the panel edge has no seam. */}
-      <div className="relative hidden overflow-hidden bg-zinc-950 md:block">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster="/login-poster.jpg"
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover opacity-80"
-        >
-          <source src="/login-bg.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-linear-to-r from-zinc-950/20 via-zinc-950/60 to-zinc-950" />
-        <div className="absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/10 to-violet-950/50" />
+    <div className="grid min-h-dvh flex-1 grid-cols-1 bg-background md:grid-cols-2">
+      {/* Left: the footage, inset as a rounded panel. Hidden on phones -
+          neither the layout nor the download make sense there. The clip is
+          desaturated and re-tinted indigo so it carries the brand colour
+          instead of reading as generic stock. */}
+      <div className="hidden p-3 md:block lg:p-4">
+        <div className="relative h-full overflow-hidden rounded-[1.75rem] bg-indigo-950">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster="/login-poster.jpg"
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover opacity-70 grayscale"
+          >
+            <source src="/login-bg.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-indigo-600 mix-blend-color" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_8%,rgba(167,139,250,0.45),transparent_55%)]" />
+          <div className="absolute inset-0 bg-linear-to-t from-indigo-950 via-indigo-950/45 to-indigo-950/10" />
 
-        <div className="relative z-10 flex h-full flex-col justify-end p-10 lg:p-14">
-          <div className="mb-5">
-            <Brand />
+          <FloatingNotice
+            className="top-[12%] right-6 lg:right-10"
+            delay="0.5s"
+            icon={
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
+                <Image src="/logos/Netflix.png" alt="" width={28} height={28} className="h-full w-full object-contain" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-indigo-950">
+                  <Bell size={10} strokeWidth={2.5} />
+                </span>
+              </span>
+            }
+            title="Netflix vence mañana"
+            detail="$44.900 · Aviso por Telegram"
+          />
+          <FloatingNotice
+            className="top-[31%] left-6 lg:left-10"
+            delay="1.1s"
+            icon={
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white">
+                <Check size={20} strokeWidth={3} />
+              </span>
+            }
+            title="Arriendo pagado"
+            detail="Próximo cobro en 30 días"
+          />
+          <FloatingNotice
+            className="top-[49%] right-8 hidden lg:block lg:right-16"
+            delay="1.7s"
+            icon={
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white">
+                <TrendingUp size={19} strokeWidth={2.5} />
+              </span>
+            }
+            title="92% a tiempo"
+            detail="Cero recargos este mes"
+          />
+
+          <div className="relative z-10 flex h-full flex-col justify-end p-8 lg:p-12">
+            <div className="mb-5">
+              <Brand tone="dark" />
+            </div>
+            <p className="max-w-sm text-3xl leading-tight font-semibold tracking-tight text-balance text-white">
+              Tus pagos, siempre en la mira.
+            </p>
+            <TypewriterRotator className="mt-3 min-h-[2.5rem] max-w-sm text-sm text-indigo-100/80" />
           </div>
-          <p className="max-w-sm text-2xl leading-snug font-semibold text-balance text-white">
-            Tus pagos, siempre en la mira.
-          </p>
-          <TypewriterRotator className="mt-2 min-h-[2.5rem] max-w-sm text-sm text-zinc-300" />
         </div>
       </div>
 
       {/* Right: the form. */}
-      <div className="relative flex items-center justify-center overflow-hidden bg-linear-to-br from-zinc-950 via-zinc-950 to-indigo-950/40 p-4 py-10">
+      <div className="relative flex flex-col items-center justify-center overflow-hidden px-4 py-10">
         <div
           aria-hidden
-          className="animate-blob pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-indigo-700/20 blur-3xl"
+          className="animate-blob pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full bg-indigo-300/30 blur-3xl"
         />
         <div
           aria-hidden
-          className="animate-blob animation-delay-2000 pointer-events-none absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-violet-700/20 blur-3xl"
+          className="animate-blob animation-delay-2000 pointer-events-none absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-violet-300/30 blur-3xl"
         />
-        {/* Fades out toward the footage panel so it never competes with the
-            form, and is most present toward the outer right edge. */}
-        <LoginNetwork className="login-net-mask pointer-events-none absolute inset-0 h-full w-full" />
+        <AlertGrid className="login-grid-mask absolute inset-0 h-full w-full" />
 
         <div className="animate-fade-in-up relative z-10 w-full max-w-sm">
           {/* On desktop the brand already lives on the footage panel. */}
           <div className="mb-6 flex justify-center md:hidden">
-            <Brand onDark={false} />
+            <Brand tone="light" />
           </div>
 
-          <div className="w-full space-y-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/80 p-6 shadow-xl shadow-indigo-900/5 backdrop-blur-xl">
+          <div className="space-y-5 rounded-3xl border border-border bg-surface/90 p-6 shadow-[0_24px_64px_-24px_rgba(79,70,229,0.35)] backdrop-blur-xl sm:p-8">
             <div>
-              <h1 className="text-lg font-semibold text-zinc-100">{title}</h1>
-              <p className="mt-0.5 text-sm text-zinc-400">{subtitle}</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+              <p className="mt-1 text-sm text-muted">{subtitle}</p>
             </div>
             {children}
           </div>
+
+          <p className="mt-6 text-center text-xs text-muted">
+            Recordatorios por Telegram · Hecho para Colombia
+          </p>
         </div>
       </div>
     </div>

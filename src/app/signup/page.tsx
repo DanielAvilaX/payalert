@@ -61,7 +61,7 @@ export default function SignupPage() {
             minLength={8}
             className={authInputClass}
           />
-          <p className="mt-1 text-xs text-zinc-500">Mínimo 8 caracteres.</p>
+          <p className="mt-1.5 text-xs text-muted">Mínimo 8 caracteres.</p>
         </div>
 
         {state?.error && <p className={authErrorClass}>{state.error}</p>}
@@ -72,7 +72,7 @@ export default function SignupPage() {
           {pending ? "Creando cuenta…" : "Crear cuenta"}
         </button>
 
-        <p className="text-center text-sm text-zinc-400">
+        <p className="text-center text-sm text-muted">
           ¿Ya tienes cuenta?{" "}
           <Link href="/login" className={authLinkClass}>
             Inicia sesión

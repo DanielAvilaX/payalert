@@ -38,7 +38,7 @@ export default function LoginPage() {
             <label htmlFor="password" className={authLabelClass}>
               Contraseña
             </label>
-            <Link href="/forgot-password" className="text-xs text-zinc-400 hover:text-zinc-200">
+            <Link href="/forgot-password" className="text-xs text-muted hover:text-accent">
               ¿La olvidaste?
             </Link>
           </div>
@@ -59,7 +59,7 @@ export default function LoginPage() {
           {pending ? "Ingresando…" : "Ingresar"}
         </button>
 
-        <p className="text-center text-sm text-zinc-400">
+        <p className="text-center text-sm text-muted">
           ¿No tienes cuenta?{" "}
           <Link href="/signup" className={authLinkClass}>
             Regístrate

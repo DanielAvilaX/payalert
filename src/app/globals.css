@@ -218,24 +218,128 @@ h3 {
   animation-delay: 2s;
 }
 
-/* The node network is solid toward the outer edge and fades out toward the
-   footage panel, so the two effects never fight over the same pixels. */
-.login-net-mask {
-  mask-image: linear-gradient(to left, black 0%, black 40%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 0%, black 40%, transparent 100%);
+/* The alert grid is fullest around the form card and dissolves toward the
+   edges of its panel, so it never ends in a hard line. */
+.login-grid-mask {
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, black 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, black 35%, transparent 100%);
+}
+
+/* Floating notifications over the footage: they slide in once, then bob. */
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes chip-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-chip-in {
+  animation: chip-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-chip-float {
+  animation: chip-float 6s ease-in-out infinite;
+}
+
+/* --- Resumen: bounce in on first view, bars grow from zero ----------- */
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-7px) scale(1.01);
+  }
+  78% {
+    transform: translateY(3px) scale(0.998);
+  }
+  100% {
+    opacity: 1;
+    /* "none" so the wrapper doesn't stay a containing block afterwards. */
+    transform: none;
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.reveal {
+  opacity: 0;
+}
+
+.reveal.is-visible {
+  animation: bounce-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms) both;
+}
+
+.bar-grow-x {
+  transform-origin: left center;
+}
+
+.bar-grow-y {
+  transform-origin: center bottom;
+}
+
+/* The delay default leaves time for the card's bounce to land first; an
+   inline animation-delay staggers bars within one chart. */
+.reveal.is-visible .bar-grow-x {
+  animation: grow-x 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+.reveal.is-visible .bar-grow-y {
+  animation: grow-y 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  /* Only the motion goes. Job Hunter's version also set opacity: 0 here,
-     which leaves the form card permanently invisible for anyone with
-     "reduce motion" switched on - not carried over. */
+  .reveal {
+    opacity: 1;
+  }
+  .reveal.is-visible,
+  .reveal.is-visible .bar-grow-x,
+  .reveal.is-visible .bar-grow-y {
+    animation: none;
+  }
+  /* Only the motion goes - never opacity: an entrance animation that stops
+     at its first frame would leave the content invisible. */
   .animate-pop-in,
   .animate-view-in,
   .animate-fade-in-up,
   .animate-blob,
+  .animate-chip-in,
+  .animate-chip-float,
   .loading-dot,
   .loading-glow {
     animation: none;
