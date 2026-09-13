@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  bucketPayments,
   categoryBreakdown,
+  categoryPaymentsDetail,
   forecastWindow,
+  forecastWindowDetail,
   incomeCommitment,
   monthlyEquivalent,
   monthlySpendSeries,
@@ -11,6 +14,7 @@ import {
   onTimeRate,
   priceIncreases,
   recurringCommitment,
+  recurringCommitmentDetail,
   seriesStartISO,
   shiftMonth,
 } from "../src/lib/metrics.ts";
@@ -148,6 +152,86 @@ test("niceCeiling rounds axis maxima to readable numbers", () => {
   assert.equal(niceCeiling(220_000), 250_000);
   assert.equal(niceCeiling(100), 100);
   assert.equal(niceCeiling(0), 1);
+});
+
+test("bucketPayments matches summarizeMonth's counts, as the actual rows", () => {
+  const today = "2026-09-13";
+  const payments = [
+    { id: "a", is_paid: false, due_date: "2026-09-10" }, // overdue
+    { id: "b", is_paid: false, due_date: "2026-09-20" }, // soon (exactly 7 days)
+    { id: "c", is_paid: false, due_date: "2026-09-25" }, // later this month
+    { id: "d", is_paid: true, due_date: "2026-09-14" }, // paid: excluded
+    { id: "e", is_paid: false, is_paused: true, due_date: "2026-09-16" }, // paused: excluded
+  ];
+  const { soon, overdue, later } = bucketPayments(payments, today);
+  assert.deepEqual(soon.map((p) => p.id), ["b"]);
+  assert.deepEqual(overdue.map((p) => p.id), ["a"]);
+  assert.deepEqual(later.map((p) => p.id), ["c"]);
+});
+
+test("recurringCommitmentDetail's items sum to recurringCommitment's totals", () => {
+  const payments = [
+    { amount: 200_000, recurrence: "monthly" },
+    { amount: 1_200_000, recurrence: "yearly" },
+    { amount: 999_000, recurrence: "monthly", is_paused: true },
+    { amount: 700_000, recurrence: "none" },
+  ];
+  const items = recurringCommitmentDetail(payments);
+  const commitment = recurringCommitment(payments);
+  assert.equal(items.length, commitment.count);
+  assert.equal(
+    items.reduce((sum, item) => sum + item.monthly, 0),
+    commitment.monthly
+  );
+  // Largest first.
+  assert.ok(items[0].monthly >= items[1].monthly);
+});
+
+test("categoryPaymentsDetail groups the same items categoryBreakdown totals", () => {
+  const payments = [
+    { amount: 164_000, recurrence: "monthly", logo: "luz" },
+    { amount: 150_000, recurrence: "bimonthly", logo: "agua" },
+    { amount: 44_900, recurrence: "monthly", logo: "netflix" },
+  ];
+  const byCategory = categoryPaymentsDetail(payments);
+  const breakdown = categoryBreakdown(payments);
+
+  for (const share of breakdown) {
+    const items = byCategory.get(share.category) ?? [];
+    assert.equal(items.length, share.count);
+    assert.equal(
+      items.reduce((sum, item) => sum + item.monthly, 0),
+      share.monthly
+    );
+  }
+});
+
+test("forecastWindowDetail's items sum to forecastWindow's totals, soonest first", () => {
+  const today = "2026-09-13";
+  const payments = [
+    { amount: 10_000, recurrence: "weekly", due_date: "2026-09-15", is_paid: false },
+    { amount: 100_000, recurrence: "monthly", due_date: "2026-09-10", is_paid: false }, // overdue
+    { amount: 70_000, recurrence: "none", due_date: "2026-09-30", is_paid: false },
+  ];
+  const items = forecastWindowDetail(payments, today, 30);
+  const totals = forecastWindow(payments, today, 30);
+
+  const upcoming = items.filter((i) => !i.overdue);
+  const overdue = items.filter((i) => i.overdue);
+  assert.equal(upcoming.length, totals.upcomingCount);
+  assert.equal(overdue.length, totals.overdueCount);
+  assert.equal(
+    upcoming.reduce((sum, i) => sum + i.amount, 0),
+    totals.upcoming
+  );
+  assert.equal(
+    overdue.reduce((sum, i) => sum + i.amount, 0),
+    totals.overdue
+  );
+  // Soonest due date first.
+  for (let i = 1; i < items.length; i++) {
+    assert.ok(items[i - 1].dueDate <= items[i].dueDate);
+  }
 });
 
 test("formatCompactCOP keeps tick labels short", () => {

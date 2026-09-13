@@ -1,91 +1,45 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
-  AlertTriangle,
-  CalendarRange,
   CheckCircle2,
+  AlertTriangle,
   Download,
   History,
-  Layers,
   Scale,
   TrendingUp,
-  Wallet,
   Weight,
-  type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { colombiaToday } from "@/lib/dates";
 import { formatCOP } from "@/lib/format";
 import {
   categoryBreakdown,
+  categoryPaymentsDetail,
   forecastWindow,
+  forecastWindowDetail,
   incomeCommitment,
   isOnTime,
-  monthlyEquivalent,
   monthlySpendSeries,
   onTimeRate,
   priceIncreases,
   recurringCommitment,
+  recurringCommitmentDetail,
   seriesStartISO,
   shiftMonth,
   type IncomeBand,
 } from "@/lib/metrics";
-import { formatDueDate, formatMonthName, formatMonthShort } from "@/lib/payment-status";
+import { BADGE, formatDueDate, formatMonthName, formatMonthShort, paymentStatus } from "@/lib/payment-status";
 import { LogoBadge } from "@/app/dashboard/payment-parts";
+import { RECURRENCE_LABEL, type Payment } from "@/app/dashboard/payment-types";
 import { SpendTrend } from "@/app/dashboard/resumen/spend-trend";
+import { KpiRow } from "@/app/dashboard/resumen/kpi-row";
+import { CategoryCard } from "@/app/dashboard/resumen/category-card";
+import { SectionHeading } from "@/app/dashboard/section-heading";
 import { CountUp, Reveal } from "@/app/dashboard/motion";
-import type { Payment } from "@/app/dashboard/payment-types";
+import type { BreakdownRow } from "@/app/dashboard/breakdown-modal";
 
 const SERIES_MONTHS = 6;
 
-function StatTile({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  alert,
-}: {
-  label: string;
-  value: ReactNode;
-  hint: string;
-  icon: LucideIcon;
-  alert?: string;
-}) {
-  return (
-    <div className="card h-full p-4">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-          <Icon size={18} />
-        </span>
-        <p className="text-sm font-medium text-muted">{label}</p>
-      </div>
-      <p className="mt-3 text-2xl font-semibold tracking-tight break-words">{value}</p>
-      <p className="mt-0.5 text-xs text-muted">{hint}</p>
-      {alert && (
-        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-          <AlertTriangle size={12} />
-          {alert}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function SectionHeading({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: LucideIcon }) {
-  return (
-    <div className="mb-4 flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
-        <Icon size={17} />
-      </span>
-      <div>
-        <h2 className="text-base font-semibold">{title}</h2>
-        <p className="text-xs text-muted">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
-const BAND_STYLE: Record<IncomeBand, { fill: string; box: string; icon: LucideIcon; text: string }> = {
+const BAND_STYLE: Record<IncomeBand, { fill: string; box: string; icon: typeof CheckCircle2; text: string }> = {
   healthy: {
     fill: "bg-accent",
     box: "bg-emerald-50 text-emerald-800",
@@ -126,6 +80,7 @@ export default async function ResumenPage() {
 
   const payments = (paymentsData ?? []) as Payment[];
   const events = eventsData ?? [];
+  const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
 
   const series = monthlySpendSeries(events, todayStr, SERIES_MONTHS);
   const spentThisMonth = series.at(-1)?.total ?? 0;
@@ -142,12 +97,84 @@ export default async function ResumenPage() {
   const monthlyIncome = (user?.user_metadata?.monthly_income as number | null | undefined) ?? null;
   const incomeShare = incomeCommitment(commitment.monthly, monthlyIncome);
 
-  const heaviest = payments
-    .filter((payment) => !payment.is_paused)
-    .map((payment) => ({ payment, monthly: monthlyEquivalent(payment.amount, payment.recurrence) }))
-    .filter(({ monthly }) => monthly > 0)
-    .sort((a, b) => b.monthly - a.monthly)
-    .slice(0, 5);
+  // --- The list behind every KPI and category, built from the same data
+  // the totals above came from, so a card's number and what it expands
+  // into can never quietly drift apart. ---
+
+  /** A settled event, as a row - the "Pagado" pill, its own paid date. */
+  function eventRow(event: (typeof events)[number]): BreakdownRow {
+    return {
+      id: event.payment_id,
+      name: event.name,
+      logo: paymentById.get(event.payment_id ?? "")?.logo ?? null,
+      amount: event.amount,
+      dateLabel: `Pagado el ${formatDueDate(colombiaToday(new Date(event.completed_at)), true)}`,
+      badgeLabel: "Pagado",
+      badgeClass: BADGE.paid,
+    };
+  }
+
+  /** A recurring payment at its monthly-equivalent amount, with its live status. */
+  function commitmentRow(payment: Payment, monthly: number): BreakdownRow {
+    const status = paymentStatus(payment, todayStr);
+    return {
+      id: payment.id,
+      name: payment.name,
+      logo: payment.logo,
+      automatic: payment.is_automatic,
+      amount: monthly,
+      dateLabel: `${RECURRENCE_LABEL[payment.recurrence] ?? payment.recurrence} · ${status.detail}`,
+      badgeLabel: status.label,
+      badgeClass: status.badgeClass,
+    };
+  }
+
+  const currentMonth = todayStr.slice(0, 7);
+  const spentRows = events
+    .filter((event) => colombiaToday(new Date(event.completed_at)).slice(0, 7) === currentMonth)
+    .map(eventRow);
+
+  const commitmentItems = recurringCommitmentDetail(payments);
+  const commitmentRows = commitmentItems.map(({ payment, monthly }) => commitmentRow(payment, monthly));
+  // Same list, just the top five - "Compromiso mensual" and "más pesados"
+  // can never disagree about which bills they mean.
+  const heaviest = commitmentItems.slice(0, 5);
+
+  const forecastItems = forecastWindowDetail(payments, todayStr, 30);
+  const forecastRows: BreakdownRow[] = forecastItems.map((item) => {
+    // Each occurrence gets the status its *own* due date implies - a future
+    // cycle of an overdue bill reads as "En 12 días", not as overdue too.
+    const status = paymentStatus({ is_paid: false, is_paused: false, due_date: item.dueDate }, todayStr);
+    return {
+      id: item.payment.id,
+      name: item.payment.name,
+      logo: item.payment.logo,
+      automatic: item.payment.is_automatic,
+      amount: item.amount,
+      amountIsVariable: item.payment.amount_is_variable,
+      dateLabel: `${formatDueDate(item.dueDate, true)} · ${status.detail}`,
+      badgeLabel: status.label,
+      badgeClass: status.badgeClass,
+    };
+  });
+
+  const ontimeRows: BreakdownRow[] = events.map((event) => {
+    const onTime = isOnTime(event);
+    return {
+      id: event.payment_id,
+      name: event.name,
+      logo: paymentById.get(event.payment_id ?? "")?.logo ?? null,
+      amount: event.amount,
+      dateLabel: `Pagado el ${formatDueDate(colombiaToday(new Date(event.completed_at)), true)} · vencía el ${formatDueDate(event.due_date, true)}`,
+      badgeLabel: onTime ? "A tiempo" : "Tarde",
+      badgeClass: onTime ? BADGE.paid : BADGE.soon,
+    };
+  });
+
+  const categoryRowsMap: Record<string, BreakdownRow[]> = {};
+  for (const [category, items] of categoryPaymentsDetail(payments)) {
+    categoryRowsMap[category] = items.map(({ payment, monthly }) => commitmentRow(payment, monthly));
+  }
 
   const recent = events.slice(0, 8);
 
@@ -176,51 +203,31 @@ export default async function ResumenPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Reveal delay={0}>
-          <StatTile
-            label="Gastado este mes"
-            value={<CountUp value={spentThisMonth} />}
-            hint={`${lastMonthName.charAt(0).toUpperCase()}${lastMonthName.slice(1)}: ${formatCOP(spentLastMonth)}`}
-            icon={Wallet}
-          />
-        </Reveal>
-        <Reveal delay={70}>
-          <StatTile
-            label="Compromiso mensual"
-            value={<CountUp value={commitment.monthly} />}
-            hint={`≈ ${formatCOP(commitment.annual)} al año · ${commitment.count} pago${commitment.count === 1 ? "" : "s"} recurrente${commitment.count === 1 ? "" : "s"}`}
-            icon={Scale}
-          />
-        </Reveal>
-        <Reveal delay={140}>
-          <StatTile
-            label="Por pagar · 30 días"
-            value={<CountUp value={forecast.upcoming} />}
-            hint={`${forecast.upcomingCount} cobro${forecast.upcomingCount === 1 ? "" : "s"} en camino`}
-            icon={CalendarRange}
-            alert={
-              forecast.overdueCount
-                ? `+ ${formatCOP(forecast.overdue)} vencido${forecast.overdueCount === 1 ? "" : "s"}`
-                : undefined
-            }
-          />
-        </Reveal>
-        <Reveal delay={210}>
-          <StatTile
-            label="Pagos a tiempo"
-            value={
-              punctuality.rate === null ? "—" : <CountUp value={punctuality.rate * 100} format="percent" />
-            }
-            hint={
-              punctuality.total
-                ? `${punctuality.onTime} de ${punctuality.total} en los últimos ${SERIES_MONTHS} meses`
-                : "Aún sin historial"
-            }
-            icon={CheckCircle2}
-          />
-        </Reveal>
-      </div>
+      <KpiRow
+        spentThisMonth={<CountUp value={spentThisMonth} />}
+        spentHint={`${lastMonthName.charAt(0).toUpperCase()}${lastMonthName.slice(1)}: ${formatCOP(spentLastMonth)}`}
+        spentRows={spentRows}
+        commitmentMonthly={<CountUp value={commitment.monthly} />}
+        commitmentHint={`≈ ${formatCOP(commitment.annual)} al año · ${commitment.count} pago${commitment.count === 1 ? "" : "s"} recurrente${commitment.count === 1 ? "" : "s"}`}
+        commitmentRows={commitmentRows}
+        forecastUpcoming={<CountUp value={forecast.upcoming} />}
+        forecastHint={`${forecast.upcomingCount} cobro${forecast.upcomingCount === 1 ? "" : "s"} en camino`}
+        forecastAlert={
+          forecast.overdueCount
+            ? `+ ${formatCOP(forecast.overdue)} vencido${forecast.overdueCount === 1 ? "" : "s"}`
+            : undefined
+        }
+        forecastRows={forecastRows}
+        onTimeValue={
+          punctuality.rate === null ? "—" : <CountUp value={punctuality.rate * 100} format="percent" />
+        }
+        onTimeHint={
+          punctuality.total
+            ? `${punctuality.onTime} de ${punctuality.total} en los últimos ${SERIES_MONTHS} meses`
+            : "Aún sin historial"
+        }
+        ontimeRows={ontimeRows}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Reveal>
@@ -242,47 +249,7 @@ export default async function ResumenPage() {
           </section>
         </Reveal>
 
-        <Reveal delay={100}>
-          <section className="card h-full p-5">
-            <SectionHeading
-              icon={Layers}
-              title="Por categoría"
-              subtitle="Costo mensual de tus pagos recurrentes"
-            />
-            {categories.length ? (
-              <ul className="space-y-3.5">
-                {categories.map((category, i) => (
-                  <li key={category.category}>
-                    <div className="flex items-baseline justify-between gap-3 text-sm">
-                      <span className="font-medium break-words">{category.label}</span>
-                      <span className="shrink-0">
-                        <CountUp value={category.monthly} delay={i * 60} />
-                      </span>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className="bar-grow-x h-full rounded-full bg-accent"
-                          style={{
-                            width: `${Math.max(2, (category.monthly / topCategory) * 100)}%`,
-                            animationDelay: `${350 + i * 80}ms`,
-                          }}
-                        />
-                      </div>
-                      <span className="w-10 text-right text-xs text-muted">
-                        <CountUp value={category.share * 100} format="percent" delay={i * 60} />
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted">
-                Agrega montos a tus pagos recurrentes para ver en qué se va tu plata.
-              </p>
-            )}
-          </section>
-        </Reveal>
+        <CategoryCard categories={categories} rowsByCategory={categoryRowsMap} topCategory={topCategory} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

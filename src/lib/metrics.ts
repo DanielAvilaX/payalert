@@ -19,6 +19,37 @@ export function isOnTime(event: { completed_at: string; due_date: string }): boo
   return colombiaToday(new Date(event.completed_at)) <= event.due_date;
 }
 
+type OpenPayment = { is_paid: boolean; is_paused?: boolean | null; due_date: string };
+
+/**
+ * Splits this month's *open* bills into buckets that never overlap - not
+ * just counted, but handed back as the actual rows, so a KPI's number and
+ * the list it expands into ("Pendientes" -> these 4 payments) are always
+ * built from the exact same pass instead of two functions quietly
+ * disagreeing. Paused bills are excluded everywhere: they're deliberately
+ * off the radar. Overdue isn't bounded by month-end - a bill that's been
+ * owed since July is still overdue in September.
+ */
+export function bucketPayments<T extends OpenPayment>(
+  payments: T[],
+  todayStr: string
+): { soon: T[]; overdue: T[]; later: T[] } {
+  const monthEnd = endOfMonthISO(todayStr);
+  const soon: T[] = [];
+  const overdue: T[] = [];
+  const later: T[] = [];
+
+  for (const payment of payments) {
+    if (payment.is_paid || payment.is_paused) continue;
+    const days = daysUntil(payment.due_date, todayStr);
+    if (days < 0) overdue.push(payment);
+    else if (days <= 7) soon.push(payment);
+    else if (payment.due_date <= monthEnd) later.push(payment);
+  }
+
+  return { soon, overdue, later };
+}
+
 export type MonthSummary = {
   /** Completions recorded this month. */
   paid: number;
@@ -33,25 +64,14 @@ export type MonthSummary = {
 /**
  * The month at a glance, in buckets that never overlap - so a KPI row and a
  * donut built from the same numbers always add up to the same total.
- * Paused bills are excluded everywhere: they're deliberately off the radar.
  */
 export function summarizeMonth(
-  payments: Array<{ is_paid: boolean; is_paused?: boolean | null; due_date: string }>,
+  payments: OpenPayment[],
   paidThisMonth: number,
   todayStr: string
 ): MonthSummary {
-  const monthEnd = endOfMonthISO(todayStr);
-  const summary: MonthSummary = { paid: paidThisMonth, soon: 0, overdue: 0, later: 0 };
-
-  for (const payment of payments) {
-    if (payment.is_paid || payment.is_paused) continue;
-    const days = daysUntil(payment.due_date, todayStr);
-    if (days < 0) summary.overdue += 1;
-    else if (days <= 7) summary.soon += 1;
-    else if (payment.due_date <= monthEnd) summary.later += 1;
-  }
-
-  return summary;
+  const { soon, overdue, later } = bucketPayments(payments, todayStr);
+  return { paid: paidThisMonth, soon: soon.length, overdue: overdue.length, later: later.length };
 }
 
 // --- Money over time --------------------------------------------------------
@@ -91,6 +111,22 @@ export function monthlyEquivalent(amount: number | null, recurrence: string): nu
 }
 
 /**
+ * Every active, recurring bill with its monthly-equivalent cost, largest
+ * first - the same list backs the "Compromiso mensual" total, the per-
+ * category breakdown and the "pagos más pesados" ranking, so all three
+ * always agree on exactly which bills and how much.
+ */
+export function recurringCommitmentDetail<T extends BillLike>(
+  payments: T[]
+): Array<{ payment: T; monthly: number }> {
+  return payments
+    .filter((payment) => !payment.is_paused)
+    .map((payment) => ({ payment, monthly: monthlyEquivalent(payment.amount, payment.recurrence) }))
+    .filter(({ monthly }) => monthly > 0)
+    .sort((a, b) => b.monthly - a.monthly);
+}
+
+/**
  * The fixed cost of everything recurring and active. Unlike the old
  * "Total mensual", weekly and yearly bills count too - a yearly SOAT is a
  * real monthly burden even though it only shows up once.
@@ -100,16 +136,9 @@ export function recurringCommitment(payments: BillLike[]): {
   annual: number;
   count: number;
 } {
-  let monthly = 0;
-  let count = 0;
-  for (const payment of payments) {
-    if (payment.is_paused) continue;
-    const perMonth = monthlyEquivalent(payment.amount, payment.recurrence);
-    if (perMonth <= 0) continue;
-    monthly += perMonth;
-    count += 1;
-  }
-  return { monthly, annual: monthly * 12, count };
+  const items = recurringCommitmentDetail(payments);
+  const monthly = items.reduce((sum, item) => sum + item.monthly, 0);
+  return { monthly, annual: monthly * 12, count: items.length };
 }
 
 /** "2026-09" shifted by whole months. */
@@ -161,30 +190,43 @@ export type CategoryShare = {
   share: number;
 };
 
-export function categoryBreakdown(
-  payments: Array<BillLike & { logo: string | null }>
-): CategoryShare[] {
-  const totals = new Map<CategoryId, { monthly: number; count: number }>();
-  for (const payment of payments) {
-    if (payment.is_paused) continue;
-    const perMonth = monthlyEquivalent(payment.amount, payment.recurrence);
-    if (perMonth <= 0) continue;
-    const category = categoryOf(payment.logo);
-    const entry = totals.get(category) ?? { monthly: 0, count: 0 };
-    entry.monthly += perMonth;
-    entry.count += 1;
-    totals.set(category, entry);
-  }
+type Categorizable = BillLike & { logo: string | null };
 
-  const grandTotal = [...totals.values()].reduce((sum, entry) => sum + entry.monthly, 0);
-  return [...totals.entries()]
-    .map(([category, entry]) => ({
-      category,
-      label: CATEGORY_LABEL[category],
-      monthly: entry.monthly,
-      count: entry.count,
-      share: grandTotal ? entry.monthly / grandTotal : 0,
-    }))
+/**
+ * `recurringCommitmentDetail`'s items, grouped by the category their logo
+ * implies. The same grouping backs both `categoryBreakdown`'s totals and
+ * the "see what's in here" list behind each category row.
+ */
+export function categoryPaymentsDetail<T extends Categorizable>(
+  payments: T[]
+): Map<CategoryId, Array<{ payment: T; monthly: number }>> {
+  const map = new Map<CategoryId, Array<{ payment: T; monthly: number }>>();
+  for (const item of recurringCommitmentDetail(payments)) {
+    const category = categoryOf(item.payment.logo);
+    const list = map.get(category) ?? [];
+    list.push(item);
+    map.set(category, list);
+  }
+  return map;
+}
+
+export function categoryBreakdown<T extends Categorizable>(payments: T[]): CategoryShare[] {
+  const byCategory = categoryPaymentsDetail(payments);
+  const grandTotal = [...byCategory.values()]
+    .flat()
+    .reduce((sum, item) => sum + item.monthly, 0);
+
+  return [...byCategory.entries()]
+    .map(([category, items]) => {
+      const monthly = items.reduce((sum, item) => sum + item.monthly, 0);
+      return {
+        category,
+        label: CATEGORY_LABEL[category],
+        monthly,
+        count: items.length,
+        share: grandTotal ? monthly / grandTotal : 0,
+      };
+    })
     .sort((a, b) => b.monthly - a.monthly);
 }
 
@@ -197,24 +239,31 @@ export function onTimeRate(events: Array<{ completed_at: string; due_date: strin
   return { onTime, total: events.length, rate: events.length ? onTime / events.length : null };
 }
 
+type ForecastPayment = {
+  amount: number | null;
+  recurrence: string;
+  due_date: string;
+  is_paid: boolean;
+  is_paused?: boolean | null;
+};
+
+export type ForecastItem<T> = { payment: T; amount: number; dueDate: string; overdue: boolean };
+
 /**
- * Cash needed in the next `days`, expanding recurring bills into every
- * occurrence that lands in the window (a weekly bill counts four or five
- * times in 30 days). An overdue bill is reported separately - it's owed now
- * - and its next cycles still count, because they'll come due regardless.
+ * Walks every payment forward from today, expanding recurring bills into
+ * one item per occurrence that lands within `days` (a weekly bill counts
+ * four or five times in 30 days). An overdue bill is reported separately -
+ * it's owed now - and its next cycles still count, because they'll come due
+ * regardless. Shared by `forecastWindow` (the totals) and
+ * `forecastWindowDetail` (the actual list a KPI expands into), so they can
+ * never disagree with each other.
  */
-export function forecastWindow(
-  payments: Array<{
-    amount: number | null;
-    recurrence: string;
-    due_date: string;
-    is_paid: boolean;
-    is_paused?: boolean | null;
-  }>,
+function expandForecast<T extends ForecastPayment>(
+  payments: T[],
   todayStr: string,
-  days = 30
-): { upcoming: number; upcomingCount: number; overdue: number; overdueCount: number } {
-  const result = { upcoming: 0, upcomingCount: 0, overdue: 0, overdueCount: 0 };
+  days: number
+): ForecastItem<T>[] {
+  const items: ForecastItem<T>[] = [];
 
   for (const payment of payments) {
     if (payment.is_paused || payment.amount == null) continue;
@@ -227,24 +276,48 @@ export function forecastWindow(
       // This cycle is settled; only later cycles can still come due.
       cursor = recurring ? nextDueDate(cursor, recurrence) : null;
     } else if (daysUntil(cursor, todayStr) < 0) {
-      result.overdue += amount;
-      result.overdueCount += 1;
+      items.push({ payment, amount, dueDate: cursor, overdue: true });
       cursor = recurring ? nextDueDate(cursor, recurrence) : null;
     }
 
     for (let guard = 0; cursor && guard < 60; guard++) {
       const offset = daysUntil(cursor, todayStr);
       if (offset > days) break;
-      if (offset >= 0) {
-        result.upcoming += amount;
-        result.upcomingCount += 1;
-      }
+      if (offset >= 0) items.push({ payment, amount, dueDate: cursor, overdue: false });
       if (!recurring) break;
       cursor = nextDueDate(cursor, recurrence);
     }
   }
 
+  return items;
+}
+
+/** Cash needed in the next `days`, as totals. See `expandForecast`. */
+export function forecastWindow(
+  payments: ForecastPayment[],
+  todayStr: string,
+  days = 30
+): { upcoming: number; upcomingCount: number; overdue: number; overdueCount: number } {
+  const result = { upcoming: 0, upcomingCount: 0, overdue: 0, overdueCount: 0 };
+  for (const item of expandForecast(payments, todayStr, days)) {
+    if (item.overdue) {
+      result.overdue += item.amount;
+      result.overdueCount += 1;
+    } else {
+      result.upcoming += item.amount;
+      result.upcomingCount += 1;
+    }
+  }
   return result;
+}
+
+/** Cash needed in the next `days`, as the actual list - soonest first. */
+export function forecastWindowDetail<T extends ForecastPayment>(
+  payments: T[],
+  todayStr: string,
+  days = 30
+): ForecastItem<T>[] {
+  return expandForecast(payments, todayStr, days).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
 export type PriceChange = {

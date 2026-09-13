@@ -91,7 +91,11 @@ export type PaymentStatus = {
 // no reader has to rely on telling amber from red. "Pendiente" is a far-off
 // bill with nothing wrong with it, so it stays neutral indigo rather than
 // borrowing an alarm colour.
-const BADGE: Record<StatusKind, string> = {
+// Exported so anything building its own row of "payment-shaped" data - the
+// breakdown lists a KPI expands into, say, where the row is a settled event
+// rather than a live Payment - can still borrow the exact same pill style
+// instead of re-guessing a Tailwind class.
+export const BADGE: Record<StatusKind, string> = {
   paid: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
   paused: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
   overdue: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",

@@ -1,48 +1,15 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, Clock, Send, type LucideIcon } from "lucide-react";
+import { Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { colombiaStartOfMonthISO, colombiaToday } from "@/lib/dates";
-import { summarizeMonth } from "@/lib/metrics";
+import { bucketPayments } from "@/lib/metrics";
+import { BADGE, formatDueDate, paymentStatus } from "@/lib/payment-status";
 import { AddPaymentButton, PaymentsPreview } from "@/app/dashboard/payments-view";
 import { MonthDonut, type DonutSegment } from "@/app/dashboard/inicio/month-donut";
+import { KpiCardsSection } from "@/app/dashboard/inicio/kpi-cards";
+import type { BreakdownRow } from "@/app/dashboard/breakdown-modal";
 import type { Payment } from "@/app/dashboard/payment-types";
-import { CountUp, Reveal } from "@/app/dashboard/motion";
-
-const KPI_TONES = {
-  paid: { card: "border-emerald-100 bg-emerald-50/60", icon: "bg-emerald-100 text-emerald-600" },
-  pending: { card: "border-rose-100 bg-rose-50/60", icon: "bg-rose-100 text-rose-600" },
-  soon: { card: "border-violet-100 bg-violet-50/60", icon: "bg-violet-100 text-violet-600" },
-} as const;
-
-function KpiCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  icon: LucideIcon;
-  tone: keyof typeof KPI_TONES;
-}) {
-  const classes = KPI_TONES[tone];
-  return (
-    <div className={`card h-full p-4 ${classes.card}`}>
-      <div className="flex items-center gap-2.5">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${classes.icon}`}>
-          <Icon size={18} />
-        </span>
-        <p className="text-sm font-medium text-muted">{label}</p>
-      </div>
-      <p className="mt-3 text-3xl font-semibold tracking-tight">
-        <CountUp value={value} format="number" />
-      </p>
-      <p className="mt-0.5 text-xs text-muted">{hint}</p>
-    </div>
-  );
-}
+import { Reveal } from "@/app/dashboard/motion";
 
 function TelegramCard({ connected }: { connected: boolean }) {
   return (
@@ -74,18 +41,37 @@ function TelegramCard({ connected }: { connected: boolean }) {
   );
 }
 
+/** A live payment, ready to drop straight into a breakdown modal. */
+function paymentRow(payment: Payment, todayStr: string): BreakdownRow {
+  const status = paymentStatus(payment, todayStr);
+  return {
+    id: payment.id,
+    name: payment.name,
+    logo: payment.logo,
+    automatic: payment.is_automatic,
+    amount: payment.amount,
+    amountIsVariable: payment.amount_is_variable,
+    dateLabel: `${formatDueDate(payment.due_date, true)} · ${status.detail}`,
+    badgeLabel: status.label,
+    badgeClass: status.badgeClass,
+  };
+}
+
 export default async function InicioPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [paymentsResult, paidResult, telegramResult] = await Promise.all([
+  const [paymentsResult, paidEventsResult, telegramResult] = await Promise.all([
     supabase.from("payments").select("*").order("due_date", { ascending: true }),
+    // Full rows, not just a count: the "Pagos pagados" KPI opens this exact
+    // list, so the number on the card and what it expands into can't drift.
     supabase
       .from("payment_events")
-      .select("id", { count: "exact", head: true })
-      .gte("completed_at", colombiaStartOfMonthISO()),
+      .select("id, payment_id, name, amount, completed_at")
+      .gte("completed_at", colombiaStartOfMonthISO())
+      .order("completed_at", { ascending: false }),
     supabase
       .from("telegram_connections")
       .select("user_id")
@@ -95,19 +81,37 @@ export default async function InicioPage() {
 
   const payments = (paymentsResult.data ?? []) as Payment[];
   const todayStr = colombiaToday();
-  const summary = summarizeMonth(payments, paidResult.count ?? 0, todayStr);
-  const openThisMonth = summary.later + summary.overdue;
+  const { soon, overdue, later } = bucketPayments(payments, todayStr);
+  const paidThisMonth = paidEventsResult.data ?? [];
 
   const fullName = (user?.user_metadata?.full_name as string | undefined)?.trim();
   const firstName = fullName?.split(/\s+/)[0] || user?.email?.split("@")[0] || "";
 
+  // A settled event only stores its own snapshot (name/amount), not a logo -
+  // borrow the current one from the live payment when it still exists, so
+  // the list doesn't read as a wall of generic icons for no reason.
+  const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paidRows: BreakdownRow[] = paidThisMonth.map((event) => ({
+    id: event.payment_id,
+    name: event.name,
+    logo: paymentById.get(event.payment_id ?? "")?.logo ?? null,
+    amount: event.amount,
+    dateLabel: `Pagado el ${formatDueDate(colombiaToday(new Date(event.completed_at)), true)}`,
+    badgeLabel: "Pagado",
+    badgeClass: BADGE.paid,
+  }));
+
+  // Overdue first - it's the more urgent half of "pendientes".
+  const pendingRows = [...overdue, ...later].map((payment) => paymentRow(payment, todayStr));
+  const soonRows = soon.map((payment) => paymentRow(payment, todayStr));
+
   // Order matches the validated palette order, so neighbouring segments are
   // the pairs that were checked for colour-blind separation.
   const segments: DonutSegment[] = [
-    { key: "paid", label: "Pagados", value: summary.paid, color: "#10b981" },
-    { key: "soon", label: "Próximos a vencer", value: summary.soon, color: "#f59e0b" },
-    { key: "overdue", label: "Vencidos", value: summary.overdue, color: "#ef4444" },
-    { key: "later", label: "Pendientes", value: summary.later, color: "#6366f1" },
+    { key: "paid", label: "Pagados", value: paidRows.length, color: "#10b981" },
+    { key: "soon", label: "Próximos a vencer", value: soon.length, color: "#f59e0b" },
+    { key: "overdue", label: "Vencidos", value: overdue.length, color: "#ef4444" },
+    { key: "later", label: "Pendientes", value: later.length, color: "#6366f1" },
   ];
 
   return (
@@ -121,39 +125,15 @@ export default async function InicioPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Reveal delay={60}>
-              <KpiCard
-                label="Pagos pagados"
-                value={summary.paid}
-                hint="Este mes"
-                icon={CheckCircle2}
-                tone="paid"
-              />
-            </Reveal>
-            <Reveal delay={130}>
-              <KpiCard
-                label="Pendientes"
-                value={openThisMonth}
-                hint={
-                  summary.overdue
-                    ? `Incluye ${summary.overdue} vencido${summary.overdue === 1 ? "" : "s"}`
-                    : "Este mes"
-                }
-                icon={Clock}
-                tone="pending"
-              />
-            </Reveal>
-            <Reveal delay={200}>
-              <KpiCard
-                label="Próximos a vencer"
-                value={summary.soon}
-                hint="En los próximos 7 días"
-                icon={CalendarClock}
-                tone="soon"
-              />
-            </Reveal>
-          </div>
+          <KpiCardsSection
+            paid={paidRows.length}
+            paidRows={paidRows}
+            pending={overdue.length + later.length}
+            pendingHint={overdue.length ? `Incluye ${overdue.length} vencido${overdue.length === 1 ? "" : "s"}` : "Este mes"}
+            pendingRows={pendingRows}
+            soon={soon.length}
+            soonRows={soonRows}
+          />
 
           <Reveal delay={260} className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
