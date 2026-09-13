@@ -33,6 +33,70 @@ export function AddPaymentButton({ className = "" }: { className?: string }) {
   );
 }
 
+function SearchField({
+  value,
+  onChange,
+  className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <Search
+        size={16}
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle"
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Buscar pago..."
+        aria-label="Buscar pago"
+        className="field w-full rounded-xl py-2.5 pr-3 pl-9 text-sm"
+      />
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-3 pt-1">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+        aria-label="Página anterior"
+        className="rounded-lg p-2 text-muted transition hover:bg-surface hover:text-foreground disabled:opacity-40"
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <span className="text-sm text-muted">
+        Página {page} de {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+        aria-label="Página siguiente"
+        className="rounded-lg p-2 text-muted transition hover:bg-surface hover:text-foreground disabled:opacity-40"
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+}
+
 /**
  * Which payment's detail sheet is open. `initialDetailId` comes from the
  * `?pago=` query - the Telegram "Ver detalles" button and the notification
@@ -130,20 +194,7 @@ export function PaymentsView({
           })}
         </div>
 
-        <div className="relative lg:w-72">
-          <Search
-            size={16}
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar pago..."
-            aria-label="Buscar pago"
-            className="field w-full rounded-xl py-2.5 pr-3 pl-9 text-sm"
-          />
-        </div>
+        <SearchField value={query} onChange={setQuery} className="lg:w-72" />
       </Reveal>
 
       <Reveal delay={120} className="space-y-4">
@@ -156,31 +207,7 @@ export function PaymentsView({
             <PaymentCards payments={pageItems} todayStr={todayStr} onOpenDetail={detail.open} />
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                aria-label="Página anterior"
-                className="rounded-lg p-2 text-muted transition hover:bg-surface hover:text-foreground disabled:opacity-40"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="text-sm text-muted">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                aria-label="Página siguiente"
-                className="rounded-lg p-2 text-muted transition hover:bg-surface hover:text-foreground disabled:opacity-40"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
+          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
         </>
       ) : (
         <div className="card flex flex-col items-center gap-2 px-6 py-12 text-center">
@@ -220,21 +247,33 @@ export function PaymentsView({
   );
 }
 
-/** A short, action-capable slice of the list for the Inicio page. */
+/**
+ * The Inicio page's list: searchable and paged in short pages so the rest
+ * of the dashboard stays in view. Tabs stay on the full Pagos page.
+ */
 export function PaymentsPreview({
   payments,
   todayStr,
-  limit = 6,
+  pageSize = 5,
 }: {
   payments: Payment[];
   todayStr: string;
-  limit?: number;
+  pageSize?: number;
 }) {
   const detail = useDetail();
-  const items = sortPayments(payments).slice(0, limit);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+
+  // Back to page 1 when the search changes (adjusted during render, as above).
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    setPage(1);
+  }
+
   const detailPayment = payments.find((payment) => payment.id === detail.detailId);
 
-  if (!items.length) {
+  if (!payments.length) {
     return (
       <div className="card flex flex-col items-center gap-3 px-6 py-10 text-center">
         <p className="text-sm text-muted">Todavía no tienes pagos registrados.</p>
@@ -243,15 +282,36 @@ export function PaymentsPreview({
     );
   }
 
+  const needle = query.trim().toLowerCase();
+  const visible = sortPayments(
+    needle ? payments.filter((payment) => payment.name.toLowerCase().includes(needle)) : payments
+  );
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <>
-      <div className="hidden lg:block">
-        <PaymentsTable payments={items} todayStr={todayStr} onOpenDetail={detail.open} />
-      </div>
-      <div className="lg:hidden">
-        <PaymentCards payments={items} todayStr={todayStr} onOpenDetail={detail.open} />
-      </div>
+    <div className="space-y-3">
+      <SearchField value={query} onChange={setQuery} className="sm:max-w-xs" />
+
+      {pageItems.length ? (
+        <>
+          <div className="hidden lg:block">
+            <PaymentsTable payments={pageItems} todayStr={todayStr} onOpenDetail={detail.open} />
+          </div>
+          <div className="lg:hidden">
+            <PaymentCards payments={pageItems} todayStr={todayStr} onOpenDetail={detail.open} />
+          </div>
+        </>
+      ) : (
+        <div className="card flex flex-col items-center gap-1 px-6 py-10 text-center">
+          <p className="text-sm font-medium">Ningún pago coincide con &quot;{query.trim()}&quot;.</p>
+          <p className="text-sm text-muted">Prueba con otra palabra.</p>
+        </div>
+      )}
+
+      <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
       <PaymentDetailSheet payment={detailPayment} todayStr={todayStr} onClose={detail.close} />
-    </>
+    </div>
   );
 }
