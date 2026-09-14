@@ -1,8 +1,13 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { colombiaToday, daysUntil } from "@/lib/dates";
 import { describeDue } from "@/lib/payment-status";
-import { countPendingInvitations } from "@/lib/invitations";
+import {
+  getCurrentUser,
+  getPayments,
+  getProfiles,
+  getShares,
+  getTelegramConnection,
+} from "@/lib/dashboard-data";
 import { AppShell, type ShellNotification } from "@/app/dashboard/app-shell";
 import { DeleteConfirmProvider } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModalProvider } from "@/app/dashboard/reminders-modal-context";
@@ -14,44 +19,43 @@ import { PeopleProvider, type Person } from "@/app/dashboard/sharing-context";
 const BELL_WINDOW_DAYS = 3;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   // The proxy normally redirects first, but a session that expires between
   // its check and this render would otherwise crash the whole dashboard on
   // a null dereference instead of just asking the user to sign in again.
   if (!user) redirect("/login");
 
-  const [{ data: telegramConnection }, { data: openPayments }, { data: profiles }, pendingInvitations] =
-    await Promise.all([
-      supabase.from("telegram_connections").select("user_id").eq("user_id", user.id).maybeSingle(),
-      // Only what the bell needs. The layout isn't re-rendered on client-side
-      // navigation, but every mutation revalidates it, so the badge stays true.
-      supabase
-        .from("payments")
-        .select("id, name, due_date")
-        .eq("is_paid", false)
-        .eq("is_paused", false),
-      // The profiles policy only ever returns me plus the people I actually
-      // share something with, so this *is* the "filtrar por persona" list.
-      supabase.from("profiles").select("id, full_name, email"),
-      countPendingInvitations(user.id),
-    ]);
+  // All five are deduplicated with the pages below (see lib/dashboard-data):
+  // whichever asks first pays for the round trip, the rest are free.
+  const [telegramConnection, payments, profiles, shares] = await Promise.all([
+    getTelegramConnection(),
+    getPayments(),
+    getProfiles(),
+    getShares(),
+  ]);
 
   const todayStr = colombiaToday();
-  const notifications: ShellNotification[] = (openPayments ?? [])
+  const notifications: ShellNotification[] = payments
+    .filter((payment) => !payment.is_paid && !payment.is_paused)
     .map((payment) => ({ payment, days: daysUntil(payment.due_date, todayStr) }))
     .filter(({ days }) => days <= BELL_WINDOW_DAYS)
     .sort((a, b) => a.days - b.days)
     .map(({ payment, days }) => ({
-      id: payment.id,
-      name: payment.name,
-      label: describeDue(payment.due_date, todayStr).label,
+      id: payment.id as string,
+      name: payment.name as string,
+      label: describeDue(payment.due_date as string, todayStr).label,
       tone: days < 0 ? "overdue" : days === 0 ? "today" : "soon",
     }));
 
-  const people: Person[] = (profiles ?? [])
+  // Read off the shares we already have rather than its own count query -
+  // RLS returns every invitation addressed to this account.
+  const pendingInvitations = shares.filter(
+    (share) => share.shared_with === user.id && share.status === "pending"
+  ).length;
+
+  // The profiles policy only ever returns me plus the people I actually
+  // share something with, so this *is* the "filtrar por persona" list.
+  const people: Person[] = profiles
     .filter((profile) => profile.id !== user.id)
     .map((profile) => ({
       id: profile.id as string,

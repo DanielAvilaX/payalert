@@ -1,5 +1,5 @@
 import { Inbox, Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getPayments, getProfiles, getShares } from "@/lib/dashboard-data";
 import { listPendingInvitations } from "@/lib/invitations";
 import { formatCOP } from "@/lib/format";
 import { BADGE, formatDueDate } from "@/lib/payment-status";
@@ -24,24 +24,21 @@ type ShareRow = {
 };
 
 export default async function CompartidasPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const me = user?.id ?? "";
 
-  const [{ data: paymentsData }, { data: sharesData }, { data: profilesData }, invitations] =
-    await Promise.all([
-      supabase.from("payments").select("*").order("due_date", { ascending: true }),
-      supabase.from("payment_shares").select("id, payment_id, shared_with, invited_by, status"),
-      supabase.from("profiles").select("id, full_name, email"),
-      listPendingInvitations(me),
-    ]);
+  // Only the invitations are new work - the rest came from the layout.
+  const [paymentsData, sharesData, profilesData, invitations] = await Promise.all([
+    getPayments(),
+    getShares(),
+    getProfiles(),
+    listPendingInvitations(me),
+  ]);
 
-  const payments = (paymentsData ?? []) as Payment[];
-  const shares = (sharesData ?? []) as ShareRow[];
+  const payments = paymentsData as Payment[];
+  const shares = sharesData as unknown as ShareRow[];
   const nameOf = new Map(
-    (profilesData ?? []).map((profile) => [
+    profilesData.map((profile) => [
       profile.id as string,
       ((profile.full_name as string | null)?.trim() || (profile.email as string | null) || "Alguien"),
     ])

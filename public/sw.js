@@ -1,10 +1,29 @@
-// Minimal service worker whose only job is to exist: Chrome's installability
-// criteria for "Add to Home Screen" require a registered service worker with
-// a fetch handler before it will ever fire `beforeinstallprompt`, even though
-// this one does no caching - every request just passes straight through to
-// the network. PayAlert's dashboard is all live, per-user data behind auth;
-// caching any of it here would risk serving one signed-in user's page to
-// whoever opens the app next on a shared device.
-self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+// The fetch handler is deliberately empty.
+//
+// It exists because Chrome has historically wanted a registered service
+// worker with a fetch handler before offering to install a site to the home
+// screen. It does NOT call event.respondWith(), which is the important part:
+// not responding leaves the request to the browser's own network stack, so
+// this costs nothing.
+//
+// The previous version did `event.respondWith(fetch(event.request))` - a
+// pass-through that looks harmless and isn't. Every request on the page,
+// including the streaming HTML document, was re-issued through the service
+// worker's single thread, which doubled the request count and put a proxy in
+// front of the one response whose latency the user actually feels. It bought
+// nothing: nothing here is cached, so the network did the same work either
+// way.
+self.addEventListener("fetch", () => {
+  // Intentionally empty - see above.
+});
+
+// Take over from the previous (pass-through) worker on the next load rather
+// than waiting for every tab to be closed first, so the fix above reaches
+// browsers that already installed it.
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });

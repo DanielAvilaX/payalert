@@ -1,6 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
 import { colombiaToday } from "@/lib/dates";
-import { collaboratorsByPayment, filterPaymentsByScope, parseScope, type ShareLink } from "@/lib/scope";
+import { collaboratorsByPayment, filterPaymentsByScope, parseScope } from "@/lib/scope";
+import { getCurrentUser, getPayments, getShares } from "@/lib/dashboard-data";
 import { AddPaymentButton, PaymentsView } from "@/app/dashboard/payments-view";
 import { ScopeFilter } from "@/app/dashboard/scope-filter";
 import type { Payment } from "@/app/dashboard/payment-types";
@@ -14,22 +14,15 @@ export default async function PagosPage({
   const { pago, ambito, con } = await searchParams;
   const scope = parseScope({ ambito, con });
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const [{ data: paymentsData }, { data: sharesData }] = await Promise.all([
-    supabase.from("payments").select("*").order("due_date", { ascending: true }),
-    supabase.from("payment_shares").select("payment_id, shared_with, invited_by, status"),
+  // Already fetched by the layout - these resolve without a round trip.
+  const [user, paymentsData, shares] = await Promise.all([
+    getCurrentUser(),
+    getPayments(),
+    getShares(),
   ]);
 
-  const payments = (paymentsData ?? []) as Payment[];
-  const collaborators = collaboratorsByPayment(
-    payments,
-    (sharesData ?? []) as ShareLink[],
-    user?.id ?? ""
-  );
+  const payments = paymentsData as Payment[];
+  const collaborators = collaboratorsByPayment(payments, shares, user?.id ?? "");
 
   return (
     <div className="space-y-5">

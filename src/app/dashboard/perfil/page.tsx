@@ -1,5 +1,5 @@
 import { ShieldCheck, UserRound } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/dashboard-data";
 import { colombiaToday } from "@/lib/dates";
 import { formatDueDate } from "@/lib/payment-status";
 import { Reveal } from "@/app/dashboard/motion";
@@ -11,10 +11,8 @@ function initialsOf(name: string) {
 }
 
 export default async function PerfilPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Deduplicated with the layout's own lookup - no second round trip.
+  const user = await getCurrentUser();
 
   const name = ((user?.user_metadata?.full_name as string | undefined) ?? "").trim();
   const email = user?.email ?? "";

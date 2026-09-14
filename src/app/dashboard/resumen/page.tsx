@@ -8,7 +8,7 @@ import {
   TrendingUp,
   Weight,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getPayments, getShares, getSupabase } from "@/lib/dashboard-data";
 import { colombiaToday } from "@/lib/dates";
 import { formatCOP } from "@/lib/format";
 import {
@@ -32,7 +32,6 @@ import {
   filterEventsByScope,
   filterPaymentsByScope,
   parseScope,
-  type ShareLink,
 } from "@/lib/scope";
 import { BADGE, formatDueDate, formatMonthName, formatMonthShort, paymentStatus } from "@/lib/payment-status";
 import { ScopeFilter } from "@/app/dashboard/scope-filter";
@@ -76,33 +75,28 @@ export default async function ResumenPage({
   const { ambito, con } = await searchParams;
   const scope = parseScope({ ambito, con });
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const userId = user?.id ?? "";
+  const supabase = await getSupabase();
   const todayStr = colombiaToday();
 
-  // No owner filter on either query any more: RLS already limits both to
-  // what this account can see, and on a shared payment the completions are
-  // filed under its owner - pinning to user_id would have hidden every
-  // shared bill's money from the person it was shared with.
-  const [{ data: paymentsData }, { data: eventsData }, { data: sharesData }] = await Promise.all([
-    supabase.from("payments").select("*"),
+  // Only the completions are new work here - the rest was already resolved
+  // by the layout. No owner filter on them: RLS already limits this to what
+  // the account can see, and on a shared payment the completions are filed
+  // under its owner, so pinning to user_id would have hidden every shared
+  // bill's money from the person it was shared with.
+  const [user, paymentsData, shares, { data: eventsData }] = await Promise.all([
+    getCurrentUser(),
+    getPayments(),
+    getShares(),
     supabase
       .from("payment_events")
       .select("id, payment_id, name, amount, due_date, completed_at")
       .gte("completed_at", seriesStartISO(todayStr, SERIES_MONTHS))
       .order("completed_at", { ascending: false }),
-    supabase.from("payment_shares").select("payment_id, shared_with, invited_by, status"),
   ]);
 
-  const allPayments = (paymentsData ?? []) as Payment[];
-  const collaborators = collaboratorsByPayment(
-    allPayments,
-    (sharesData ?? []) as ShareLink[],
-    userId
-  );
+  const userId = user?.id ?? "";
+  const allPayments = paymentsData as Payment[];
+  const collaborators = collaboratorsByPayment(allPayments, shares, userId);
 
   const payments = filterPaymentsByScope(allPayments, scope, collaborators);
   const events = filterEventsByScope(eventsData ?? [], scope, collaborators);

@@ -1,5 +1,5 @@
 import { Bell, Settings, Wallet } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getSupabase, getTelegramConnection } from "@/lib/dashboard-data";
 import { TelegramConnect } from "@/app/dashboard/telegram-connect";
 import { InstallAppCard } from "@/app/dashboard/configuracion/install-app-card";
 import { DefaultReminderForm } from "@/app/dashboard/default-reminder-form";
@@ -19,23 +19,17 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
 }
 
 export default async function ConfiguracionPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
 
-  const [{ data: rules }, { data: telegramConnection }] = await Promise.all([
+  // Only the rules are new work - the user and the Telegram link were
+  // already resolved by the layout.
+  const [user, { data: rules }, telegramConnection] = await Promise.all([
+    getCurrentUser(),
     supabase
       .from("reminder_rules")
       .select("*, payments(name, logo)")
       .order("created_at", { ascending: false }),
-    // `*` so the page still renders before migration 011 adds
-    // notifications_enabled, instead of failing on an unknown column.
-    supabase
-      .from("telegram_connections")
-      .select("*")
-      .eq("user_id", user?.id ?? "")
-      .maybeSingle(),
+    getTelegramConnection(),
   ]);
 
   const defaultDays =

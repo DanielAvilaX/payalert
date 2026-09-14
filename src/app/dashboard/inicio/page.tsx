@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { Send } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { colombiaStartOfMonthISO, colombiaToday } from "@/lib/dates";
 import { bucketPayments } from "@/lib/metrics";
+import {
+  getCurrentUser,
+  getPayments,
+  getShares,
+  getSupabase,
+  getTelegramConnection,
+} from "@/lib/dashboard-data";
 import {
   collaboratorsByPayment,
   filterEventsByScope,
   filterPaymentsByScope,
   parseScope,
-  type ShareLink,
 } from "@/lib/scope";
 import { BADGE, formatDueDate, paymentStatus } from "@/lib/payment-status";
 import { AddPaymentButton, PaymentsPreview } from "@/app/dashboard/payments-view";
@@ -73,13 +78,15 @@ export default async function InicioPage({
   const { ambito, con } = await searchParams;
   const scope = parseScope({ ambito, con });
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
 
-  const [paymentsResult, paidEventsResult, sharesResult, telegramResult] = await Promise.all([
-    supabase.from("payments").select("*").order("due_date", { ascending: true }),
+  // Only the completions are new work here: the user, the payments, the
+  // shares and the Telegram link were all resolved by the layout already.
+  const [user, paymentsData, shares, telegramConnection, paidEventsResult] = await Promise.all([
+    getCurrentUser(),
+    getPayments(),
+    getShares(),
+    getTelegramConnection(),
     // Full rows, not just a count: the "Pagos pagados" KPI opens this exact
     // list, so the number on the card and what it expands into can't drift.
     supabase
@@ -87,24 +94,14 @@ export default async function InicioPage({
       .select("id, payment_id, name, amount, completed_at")
       .gte("completed_at", colombiaStartOfMonthISO())
       .order("completed_at", { ascending: false }),
-    supabase.from("payment_shares").select("payment_id, shared_with, invited_by, status"),
-    supabase
-      .from("telegram_connections")
-      .select("user_id")
-      .eq("user_id", user?.id ?? "")
-      .maybeSingle(),
   ]);
 
-  const allPayments = (paymentsResult.data ?? []) as Payment[];
+  const allPayments = paymentsData as Payment[];
   const todayStr = colombiaToday();
 
   // Built from every payment, not the filtered list: an event whose payment
   // is out of scope still has to be classified to be excluded.
-  const collaborators = collaboratorsByPayment(
-    allPayments,
-    (sharesResult.data ?? []) as ShareLink[],
-    user?.id ?? ""
-  );
+  const collaborators = collaboratorsByPayment(allPayments, shares, user?.id ?? "");
 
   const payments = filterPaymentsByScope(allPayments, scope, collaborators);
   const paidThisMonth = filterEventsByScope(paidEventsResult.data ?? [], scope, collaborators);
@@ -190,7 +187,7 @@ export default async function InicioPage({
             <MonthDonut segments={segments} />
           </Reveal>
           <Reveal delay={300}>
-            <TelegramCard connected={Boolean(telegramResult.data)} />
+            <TelegramCard connected={Boolean(telegramConnection)} />
           </Reveal>
         </div>
       </div>

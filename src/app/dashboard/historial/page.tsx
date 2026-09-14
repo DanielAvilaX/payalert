@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getProfiles, getSupabase } from "@/lib/dashboard-data";
 import type { ActivityAction, ActivityDetails } from "@/lib/activity";
 import { ActivityFeed, type ActivityEntry } from "@/app/dashboard/historial/activity-feed";
 import { Reveal } from "@/app/dashboard/motion";
@@ -8,22 +8,21 @@ import { Reveal } from "@/app/dashboard/motion";
 const MAX_ENTRIES = 200;
 
 export default async function HistorialPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
 
-  const [{ data: rows }, { data: profiles }] = await Promise.all([
+  // Only the log itself is new work here; the profiles came from the layout.
+  const [user, { data: rows }, profiles] = await Promise.all([
+    getCurrentUser(),
     supabase
       .from("activity_log")
       .select("id, payment_id, payment_name, actor_id, action, details, created_at")
       .order("created_at", { ascending: false })
       .limit(MAX_ENTRIES),
-    supabase.from("profiles").select("id, full_name, email"),
+    getProfiles(),
   ]);
 
   const nameOf = new Map(
-    (profiles ?? []).map((profile) => [
+    profiles.map((profile) => [
       profile.id as string,
       ((profile.full_name as string | null)?.trim() || (profile.email as string | null) || "Alguien"),
     ])
