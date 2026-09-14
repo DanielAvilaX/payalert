@@ -1,6 +1,7 @@
 import { Bell, Settings, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TelegramConnect } from "@/app/dashboard/telegram-connect";
+import { InstallAppCard } from "@/app/dashboard/configuracion/install-app-card";
 import { DefaultReminderForm } from "@/app/dashboard/default-reminder-form";
 import { IncomeForm } from "@/app/dashboard/income-form";
 import { RulesOverview, type RuleWithPayment } from "@/app/dashboard/rules-overview";
@@ -52,21 +53,25 @@ export default async function ConfiguracionPage() {
         <TelegramConnect connected={Boolean(telegramConnection)} />
       </Reveal>
 
-      <Reveal delay={120}>
+      <Reveal delay={110}>
+        <InstallAppCard />
+      </Reveal>
+
+      <Reveal delay={160}>
         <section className="card p-5 sm:p-6">
           <SectionTitle icon={<Settings size={18} />}>Preferencias generales</SectionTitle>
           <DefaultReminderForm defaultValue={defaultDays} />
         </section>
       </Reveal>
 
-      <Reveal delay={180}>
+      <Reveal delay={210}>
         <section className="card p-5 sm:p-6">
           <SectionTitle icon={<Wallet size={18} />}>Tus finanzas</SectionTitle>
           <IncomeForm defaultValue={monthlyIncome} />
         </section>
       </Reveal>
 
-      <Reveal delay={240}>
+      <Reveal delay={260}>
         <section className="card p-5 sm:p-6">
           <SectionTitle icon={<Bell size={18} />}>Reglas personalizadas</SectionTitle>
           <p className="mb-4 text-sm text-muted">
