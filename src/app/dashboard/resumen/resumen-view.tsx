@@ -24,6 +24,7 @@ import {
   recurringCommitment,
   recurringCommitmentDetail,
   shiftMonth,
+  SUMMARY_MONTHS,
   type IncomeBand,
 } from "@/lib/metrics";
 import { filterEventsByScope, filterPaymentsByScope } from "@/lib/scope";
@@ -44,7 +45,7 @@ import { SectionHeading } from "@/app/dashboard/section-heading";
 import { CountUp, Reveal } from "@/app/dashboard/motion";
 import type { BreakdownRow } from "@/app/dashboard/breakdown-modal";
 
-export const SERIES_MONTHS = 6;
+const SERIES_MONTHS = SUMMARY_MONTHS;
 
 export type ResumenEvent = {
   id: string;

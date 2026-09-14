@@ -1,9 +1,9 @@
 import { Download } from "lucide-react";
 import { getCurrentUser, getPayments, getSupabase } from "@/lib/dashboard-data";
 import { colombiaToday } from "@/lib/dates";
-import { seriesStartISO } from "@/lib/metrics";
+import { SUMMARY_MONTHS, seriesStartISO } from "@/lib/metrics";
 import { ScopeFilter } from "@/app/dashboard/scope-filter";
-import { ResumenView, SERIES_MONTHS, type ResumenEvent } from "@/app/dashboard/resumen/resumen-view";
+import { ResumenView, type ResumenEvent } from "@/app/dashboard/resumen/resumen-view";
 import type { Payment } from "@/app/dashboard/payment-types";
 
 export default async function ResumenPage() {
@@ -21,7 +21,7 @@ export default async function ResumenPage() {
     supabase
       .from("payment_events")
       .select("id, payment_id, name, amount, due_date, completed_at")
-      .gte("completed_at", seriesStartISO(todayStr, SERIES_MONTHS))
+      .gte("completed_at", seriesStartISO(todayStr, SUMMARY_MONTHS))
       .order("completed_at", { ascending: false }),
   ]);
 

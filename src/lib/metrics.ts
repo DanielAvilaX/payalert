@@ -148,6 +148,15 @@ export function shiftMonth(month: string, delta: number): string {
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
 }
 
+/**
+ * How many months Resumen looks back over. Lives here rather than in the
+ * Resumen component on purpose: that component is a client module, and a
+ * server file importing a plain value out of a client module gets a client
+ * reference instead of the number - which is exactly how the date math for
+ * the page's query broke once.
+ */
+export const SUMMARY_MONTHS = 6;
+
 /** Start of the first month in a series of `months`, as a UTC instant for queries. */
 export function seriesStartISO(todayStr: string, months = 6): string {
   const first = shiftMonth(todayStr.slice(0, 7), -(months - 1));
