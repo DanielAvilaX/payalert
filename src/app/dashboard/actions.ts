@@ -21,6 +21,8 @@ import {
   MAX_REMIND_DAYS_BEFORE,
 } from "@/lib/validation";
 import { settlePayment } from "@/lib/payments";
+import { logActivity, requirePaymentAccess } from "@/lib/access";
+import { diffPayment } from "@/lib/activity";
 
 export type { Recurrence };
 export type ActionState = { error?: string } | undefined;
@@ -42,12 +44,10 @@ const RECURRENCES: Recurrence[] = [
   "yearly",
 ];
 
-/**
- * Every mutation scopes its query by user_id on top of RLS. RLS alone is
- * enough to *stop* a cross-account write, but scoping here means a missing
- * or mis-edited policy can never silently widen the blast radius, and it
- * makes each query's intent readable on its own.
- */
+/** Every field the activity log reports changes to, plus what it needs to file them. */
+const TRACKED_COLUMNS =
+  "id, user_id, name, amount, logo, due_date, recurrence, remind_days_before, is_automatic, amount_is_variable, notes, payment_url";
+
 async function requireUser() {
   const supabase = await createClient();
   const {
@@ -170,13 +170,21 @@ export async function createPayment(
   const parsed = parsePaymentForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("payments").insert({
-    user_id: user.id,
-    currency: "COP",
-    ...parsed.values,
-  });
+  const { data, error } = await supabase
+    .from("payments")
+    .insert({ user_id: user.id, currency: "COP", ...parsed.values })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    paymentId: data.id,
+    paymentName: parsed.values.name,
+    actorId: user.id,
+    action: "created",
+    audience: [user.id],
+  });
   revalidatePath("/dashboard", "layout");
 }
 
@@ -188,10 +196,7 @@ export async function createPayment(
  * fixing a typo in the name of an overdue monthly bill rolled it forward to
  * next month and silently hid that it was still unpaid.
  */
-export async function updatePayment(
-  id: string,
-  formData: FormData
-): Promise<ActionState> {
+export async function updatePayment(id: string, formData: FormData): Promise<ActionState> {
   const { supabase, user } = await requireUser();
 
   const parsed = parsePaymentForm(formData);
@@ -199,28 +204,45 @@ export async function updatePayment(
 
   const { data: existing, error: fetchError } = await supabase
     .from("payments")
-    .select("due_date, recurrence")
+    .select(TRACKED_COLUMNS)
     .eq("id", id)
-    .eq("user_id", user.id)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
   if (!existing) return { error: "No encontramos ese pago" };
 
+  let audience: string[];
+  try {
+    audience = await requirePaymentAccess(supabase, id, user.id);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No encontramos ese pago" };
+  }
+
   const values = { ...parsed.values };
-  const unchangedSchedule = isSameSchedule(existing, values.recurrence, {
-    day: parseIntInRange(formData.get("day_of_month"), 1, 31),
-    month: parseIntInRange(formData.get("month"), 1, 12),
-    weekday: parseIntInRange(formData.get("weekday"), 0, 6),
-  });
-  if (unchangedSchedule) values.due_date = existing.due_date;
+  const unchangedSchedule = isSameSchedule(
+    existing as unknown as { due_date: string; recurrence: string },
+    values.recurrence,
+    {
+      day: parseIntInRange(formData.get("day_of_month"), 1, 31),
+      month: parseIntInRange(formData.get("month"), 1, 12),
+      weekday: parseIntInRange(formData.get("weekday"), 0, 6),
+    }
+  );
+  if (unchangedSchedule) values.due_date = (existing as unknown as { due_date: string }).due_date;
 
-  const { error } = await supabase
-    .from("payments")
-    .update(values)
-    .eq("id", id)
-    .eq("user_id", user.id);
-
+  const { error } = await supabase.from("payments").update(values).eq("id", id);
   if (error) return { error: error.message };
+
+  const changes = diffPayment(existing as unknown as Record<string, unknown>, values);
+  if (Object.keys(changes).length > 0) {
+    await logActivity(supabase, {
+      paymentId: id,
+      paymentName: values.name,
+      actorId: user.id,
+      action: "updated",
+      details: { changes },
+      audience,
+    });
+  }
   revalidatePath("/dashboard", "layout");
 }
 
@@ -235,12 +257,29 @@ export async function savePayment(
 
 export async function deletePayment(id: string) {
   const { supabase, user } = await requireUser();
-  const { error } = await supabase
+
+  const { data: payment } = await supabase
     .from("payments")
-    .delete()
+    .select("name")
     .eq("id", id)
-    .eq("user_id", user.id);
+    .maybeSingle();
+  const audience = await requirePaymentAccess(supabase, id, user.id);
+
+  const { error } = await supabase.from("payments").delete().eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Logged after, with no payment to point at - the foreign key would have
+  // nulled it anyway, and writing it first would leave a "deleted" entry
+  // behind for a deletion that failed. The denormalized name and the
+  // audience captured above are what keep "Alejandra eliminó Arriendo"
+  // readable once the payment itself is gone.
+  await logActivity(supabase, {
+    paymentId: null,
+    paymentName: payment?.name ?? "Pago",
+    actorId: user.id,
+    action: "deleted",
+    audience,
+  });
   revalidatePath("/dashboard", "layout");
 }
 
@@ -273,6 +312,14 @@ export async function markPaid(id: string, actualAmountRaw?: string) {
   const result = await settlePayment(supabase, user.id, id, actualAmount);
   if ("error" in result) throw new Error(result.error);
 
+  await logActivity(supabase, {
+    paymentId: id,
+    paymentName: result.payment.name,
+    actorId: user.id,
+    action: "paid",
+    details: { amount: result.payment.amount, dueDate: result.payment.due_date },
+    audience: result.audience,
+  });
   revalidatePath("/dashboard", "layout");
 }
 
@@ -287,38 +334,48 @@ export async function unmarkPaid(id: string) {
 
   const { data: payment, error: fetchError } = await supabase
     .from("payments")
-    .select("due_date")
+    .select("name, due_date")
     .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
   if (fetchError) throw new Error(fetchError.message);
+  if (!payment) throw new Error("No encontramos ese pago");
 
-  const { error } = await supabase
-    .from("payments")
-    .update({ is_paid: false })
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const audience = await requirePaymentAccess(supabase, id, user.id);
+
+  const { error } = await supabase.from("payments").update({ is_paid: false }).eq("id", id);
   if (error) throw new Error(error.message);
 
+  // Matched on the cycle alone, never on who owns the event: on a shared
+  // payment the completion is filed under the owner, so pinning this to the
+  // caller would leave the event behind - still counted in "Gastado este
+  // mes" - whenever the other person is the one undoing it.
   const { error: deleteError } = await supabase
     .from("payment_events")
     .delete()
     .eq("payment_id", id)
-    .eq("user_id", user.id)
     .eq("due_date", payment.due_date);
   if (deleteError) throw new Error(deleteError.message);
 
+  await logActivity(supabase, {
+    paymentId: id,
+    paymentName: payment.name,
+    actorId: user.id,
+    action: "unpaid",
+    details: { dueDate: payment.due_date },
+    audience,
+  });
   revalidatePath("/dashboard", "layout");
 }
 
 /** Past completions of one payment, newest first - for its detail sheet. */
 export async function listPaymentHistory(paymentId: string): Promise<PaymentHistoryEntry[]> {
-  const { supabase, user } = await requireUser();
+  const { supabase } = await requireUser();
+  // No owner filter: on a shared payment the completions are filed under the
+  // owner, and RLS already limits this to payments the caller can see.
   const { data, error } = await supabase
     .from("payment_events")
     .select("id, completed_at, amount, due_date")
     .eq("payment_id", paymentId)
-    .eq("user_id", user.id)
     .order("completed_at", { ascending: false })
     .limit(12);
   if (error) throw new Error(error.message);
@@ -338,12 +395,24 @@ export async function resumePayment(id: string) {
 
 async function setPaused(id: string, paused: boolean) {
   const { supabase, user } = await requireUser();
-  const { error } = await supabase
+
+  const { data: payment } = await supabase
     .from("payments")
-    .update({ is_paused: paused })
+    .select("name")
     .eq("id", id)
-    .eq("user_id", user.id);
+    .maybeSingle();
+  const audience = await requirePaymentAccess(supabase, id, user.id);
+
+  const { error } = await supabase.from("payments").update({ is_paused: paused }).eq("id", id);
   if (error) throw new Error(error.message);
+
+  await logActivity(supabase, {
+    paymentId: id,
+    paymentName: payment?.name ?? "Pago",
+    actorId: user.id,
+    action: paused ? "paused" : "resumed",
+    audience,
+  });
   revalidatePath("/dashboard", "layout");
 }
 
@@ -366,6 +435,23 @@ export async function disconnectTelegram() {
   const { error } = await supabase
     .from("telegram_connections")
     .delete()
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
+}
+
+/**
+ * Silences reminders without tearing the Telegram link down. Disconnecting
+ * used to be the only way to stop them, and re-pairing afterwards means
+ * generating a token and opening the bot again - far too much ceremony for
+ * "not this week".
+ */
+export async function setTelegramNotifications(enabled: boolean) {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("telegram_connections")
+    .update({ notifications_enabled: enabled })
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard", "layout");

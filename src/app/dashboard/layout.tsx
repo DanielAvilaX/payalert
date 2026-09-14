@@ -2,11 +2,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { colombiaToday, daysUntil } from "@/lib/dates";
 import { describeDue } from "@/lib/payment-status";
+import { countPendingInvitations } from "@/lib/invitations";
 import { AppShell, type ShellNotification } from "@/app/dashboard/app-shell";
 import { DeleteConfirmProvider } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModalProvider } from "@/app/dashboard/reminders-modal-context";
 import { ToastProvider } from "@/app/dashboard/toast-context";
 import { PaymentUIProvider } from "@/app/dashboard/payment-ui-context";
+import { PeopleProvider, type Person } from "@/app/dashboard/sharing-context";
 
 // Bills due within this many days show up in the notification bell.
 const BELL_WINDOW_DAYS = 3;
@@ -21,17 +23,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // a null dereference instead of just asking the user to sign in again.
   if (!user) redirect("/login");
 
-  const [{ data: telegramConnection }, { data: openPayments }] = await Promise.all([
-    supabase.from("telegram_connections").select("user_id").eq("user_id", user.id).maybeSingle(),
-    // Only what the bell needs. The layout isn't re-rendered on client-side
-    // navigation, but every mutation revalidates it, so the badge stays true.
-    supabase
-      .from("payments")
-      .select("id, name, due_date")
-      .eq("user_id", user.id)
-      .eq("is_paid", false)
-      .eq("is_paused", false),
-  ]);
+  const [{ data: telegramConnection }, { data: openPayments }, { data: profiles }, pendingInvitations] =
+    await Promise.all([
+      supabase.from("telegram_connections").select("user_id").eq("user_id", user.id).maybeSingle(),
+      // Only what the bell needs. The layout isn't re-rendered on client-side
+      // navigation, but every mutation revalidates it, so the badge stays true.
+      supabase
+        .from("payments")
+        .select("id, name, due_date")
+        .eq("is_paid", false)
+        .eq("is_paused", false),
+      // The profiles policy only ever returns me plus the people I actually
+      // share something with, so this *is* the "filtrar por persona" list.
+      supabase.from("profiles").select("id, full_name, email"),
+      countPendingInvitations(user.id),
+    ]);
 
   const todayStr = colombiaToday();
   const notifications: ShellNotification[] = (openPayments ?? [])
@@ -45,6 +51,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
       tone: days < 0 ? "overdue" : days === 0 ? "today" : "soon",
     }));
 
+  const people: Person[] = (profiles ?? [])
+    .filter((profile) => profile.id !== user.id)
+    .map((profile) => ({
+      id: profile.id as string,
+      name: (profile.full_name as string | null) ?? null,
+      email: (profile.email as string | null) ?? null,
+    }));
+
   const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
   const userName = fullName || user.email?.split("@")[0] || "Tu cuenta";
   const defaultRemindDaysBefore =
@@ -55,14 +69,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DeleteConfirmProvider>
         <RemindersModalProvider>
           <PaymentUIProvider defaultRemindDaysBefore={defaultRemindDaysBefore}>
-            <AppShell
-              userName={userName}
-              userEmail={user.email ?? ""}
-              telegramConnected={Boolean(telegramConnection)}
-              notifications={notifications}
-            >
-              {children}
-            </AppShell>
+            <PeopleProvider people={people}>
+              <AppShell
+                userName={userName}
+                userEmail={user.email ?? ""}
+                telegramConnected={Boolean(telegramConnection)}
+                notifications={notifications}
+                pendingInvitations={pendingInvitations}
+              >
+                {children}
+              </AppShell>
+            </PeopleProvider>
           </PaymentUIProvider>
         </RemindersModalProvider>
       </DeleteConfirmProvider>

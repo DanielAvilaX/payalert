@@ -19,6 +19,17 @@ export function colombiaToday(now: Date = new Date()): string {
 }
 
 // `dateStr` + `timeStr` are Colombia local time; returns the UTC instant.
+/**
+ * "14:05" - the wall-clock time in Colombia for any instant. Same reason
+ * the rest of this file exists: toLocaleTimeString reads the *server's*
+ * zone inside a Server Component, which is UTC on Vercel, so an activity
+ * logged at 9am in Bogotá would be stamped 2pm.
+ */
+export function colombiaTime(instant: Date): string {
+  const shifted = new Date(instant.getTime() - COLOMBIA_OFFSET_MINUTES * 60_000);
+  return `${String(shifted.getUTCHours()).padStart(2, "0")}:${String(shifted.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 export function colombiaLocalToUtc(dateStr: string, timeStr: string = "00:00"): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [hh, mm] = timeStr.split(":").map(Number);

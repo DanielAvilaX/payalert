@@ -7,6 +7,7 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 import { settlePayment } from "@/lib/payments";
+import { logActivity } from "@/lib/access";
 
 // Telegram Update payload - only the fields we use.
 type TelegramUpdate = {
@@ -86,6 +87,18 @@ async function handleCallback(callback: NonNullable<TelegramUpdate["callback_que
   }
 
   await answerCallbackQuery(callback.id, "¡Listo! Marcado como pagado.");
+
+  // Settling from the chat is still somebody doing something: on a shared
+  // payment the other person needs to be able to see who it was.
+  await logActivity(supabase, {
+    paymentId,
+    paymentName: result.payment.name,
+    actorId: connection.user_id,
+    action: "paid",
+    details: { amount: result.payment.amount, dueDate: result.payment.due_date },
+    audience: result.audience,
+  });
+
   // Rewrite the reminder so the chat doesn't keep a stale "vence hoy" with a
   // live button under it.
   await editMessageText(

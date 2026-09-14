@@ -1,5 +1,8 @@
 export type Payment = {
   id: string;
+  /** Who created it. Not "who can see it" - that's the owner plus everyone
+      on an accepted share (see lib/scope.ts). */
+  user_id: string;
   name: string;
   amount: number | null;
   currency: string;
@@ -17,15 +20,9 @@ export type Payment = {
   payment_url: string | null;
 };
 
-export const RECURRENCE_LABEL: Record<string, string> = {
-  none: "Único",
-  weekly: "Semanal",
-  monthly: "Mensual",
-  bimonthly: "Bimensual",
-  quarterly: "Trimestral",
-  semiannual: "Semestral",
-  yearly: "Anual",
-};
+// Re-exported from lib so the framework-free modules there (the activity
+// log's change descriptions) and the components here read the same labels.
+export { RECURRENCE_LABEL } from "@/lib/recurrence";
 
 /**
  * The one ordering every list uses: open bills first by due date (so

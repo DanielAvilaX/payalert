@@ -8,6 +8,7 @@ import {
   daysUntil,
   type Recurrence,
 } from "@/lib/dates";
+import { logActivity } from "@/lib/access";
 
 type Payment = {
   id: string;
@@ -47,6 +48,7 @@ function shouldNagOverdue(daysOverdue: number): boolean {
 type ReminderRule = {
   id: string;
   payment_id: string;
+  user_id: string;
   days_before_due: number;
   start_time: string;
   end_time: string | null;
@@ -135,7 +137,11 @@ function ruleMessage(payment: Payment, rule: ReminderRule, fireAt: Date): string
 
 const DUE_DAY_TIMES = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
-type GeneralSlot = { time: string; kind: string; text: (payment: Payment, remaining: number) => string };
+type GeneralSlot = {
+  time: string;
+  kind: string;
+  text: (payment: Payment, remaining: number) => string;
+};
 
 function generalSchedule(remaining: number): GeneralSlot[] {
   if (remaining === 0) {
@@ -177,7 +183,8 @@ function generalSchedule(remaining: number): GeneralSlot[] {
       {
         time: "18:00",
         kind: "gen-2-b",
-        text: (p) => `⏰ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence en 2 días. No lo dejes para el final.`,
+        text: (p) =>
+          `⏰ <b>${escapeHtml(p.name)}</b>${formatAmount(p)} vence en 2 días. No lo dejes para el final.`,
       },
     ];
   }
@@ -213,13 +220,48 @@ export async function GET(request: NextRequest) {
   // abort the whole run and silently starve every payment after it.
   const errors: string[] = [];
 
+  // Who else is on each payment. A missing table (deploy ahead of its
+  // migration) simply means nothing is shared yet. Resolved up front
+  // because the rollover below already needs it.
+  const { data: sharesData } = await supabase
+    .from("payment_shares")
+    .select("payment_id, shared_with")
+    .eq("status", "accepted");
+
+  const sharedWith = new Map<string, string[]>();
+  for (const share of sharesData ?? []) {
+    const list = sharedWith.get(share.payment_id as string) ?? [];
+    list.push(share.shared_with as string);
+    sharedWith.set(share.payment_id as string, list);
+  }
+
+  async function audienceOf(paymentId: string, ownerId?: string): Promise<string[]> {
+    const people = new Set<string>(sharedWith.get(paymentId) ?? []);
+    if (ownerId) {
+      people.add(ownerId);
+      return [...people];
+    }
+    const { data } = await supabase
+      .from("payments")
+      .select("user_id")
+      .eq("id", paymentId)
+      .maybeSingle();
+    if (data?.user_id) people.add(data.user_id as string);
+    return [...people];
+  }
+
+  /** Everyone who should hear about a payment: its owner plus accepted shares. */
+  function recipientsOf(payment: Payment): string[] {
+    return [...new Set([payment.user_id, ...(sharedWith.get(payment.id) ?? [])])];
+  }
+
   // Recurring payments that were marked paid stay that way (green check,
   // no reminders) until their due date actually passes - only then do they
   // roll forward to the next cycle and reopen as unpaid. Paying early
   // shouldn't instantly reopen next month's bill.
   const { data: dueRollovers } = await supabase
     .from("payments")
-    .select("id, due_date, recurrence")
+    .select("id, name, due_date, recurrence, user_id")
     .eq("is_paid", true)
     .eq("is_paused", false)
     .neq("recurrence", "none")
@@ -227,15 +269,27 @@ export async function GET(request: NextRequest) {
 
   let rolledOver = 0;
   for (const payment of dueRollovers ?? []) {
+    const rolledTo = nextDueDate(payment.due_date, payment.recurrence as Recurrence);
     const { error: rollError } = await supabase
       .from("payments")
-      .update({
-        due_date: nextDueDate(payment.due_date, payment.recurrence as Recurrence),
-        is_paid: false,
-      })
+      .update({ due_date: rolledTo, is_paid: false })
       .eq("id", payment.id);
-    if (rollError) errors.push(`rollover ${payment.id}: ${rollError.message}`);
-    else rolledOver += 1;
+    if (rollError) {
+      errors.push(`rollover ${payment.id}: ${rollError.message}`);
+      continue;
+    }
+    rolledOver += 1;
+    // Logged with no actor: nobody did this, the cycle did. Without it the
+    // date appears to change on its own, which is the single most confusing
+    // thing a shared payment can do.
+    await logActivity(supabase, {
+      paymentId: payment.id,
+      paymentName: payment.name,
+      actorId: null,
+      action: "rolled_over",
+      details: { nextDueDate: rolledTo },
+      audience: await audienceOf(payment.id, payment.user_id),
+    });
   }
 
   const { data: paymentsData, error } = await supabase
@@ -266,15 +320,19 @@ export async function GET(request: NextRequest) {
     rulesByPayment.set(rule.payment_id, list);
   }
 
+  // `*` for the same reason as payments above: notifications_enabled only
+  // exists after migration 011, and reading it must never be what stops a
+  // reminder from going out.
   const connectionCache = new Map<string, number | null>();
   async function chatIdFor(userId: string): Promise<number | null> {
     if (connectionCache.has(userId)) return connectionCache.get(userId)!;
     const { data } = await supabase
       .from("telegram_connections")
-      .select("chat_id")
+      .select("*")
       .eq("user_id", userId)
       .maybeSingle();
-    const chatId = data?.chat_id ?? null;
+    const muted = data?.notifications_enabled === false;
+    const chatId = muted ? null : (data?.chat_id ?? null);
     connectionCache.set(userId, chatId);
     return chatId;
   }
@@ -290,51 +348,65 @@ export async function GET(request: NextRequest) {
    * If the send then fails, the claim is released so a later run retries
    * instead of the notification being silently lost forever.
    *
-   * The claim is keyed on the Colombia calendar day it's sent, not just
-   * payment+kind+due_date - kinds like "overdue" and "gen-far" are meant to
-   * repeat once a day for as long as their window lasts, and due_date
-   * doesn't change while that's happening.
+   * The claim is keyed on the recipient as well as the Colombia calendar day
+   * it's sent: on a shared payment both people must be able to claim the
+   * same reminder, and kinds like "overdue" and "gen-far" are meant to
+   * repeat once a day for as long as their window lasts.
    */
-  async function sendOnce(payment: Payment, kind: string, text: string): Promise<boolean> {
-    const chatId = await chatIdFor(payment.user_id);
-    if (!chatId) return false;
+  async function sendOnce(payment: Payment, kind: string, text: string): Promise<number> {
+    let sent = 0;
 
-    const { data: claim, error: claimError } = await supabase
-      .from("notification_log")
-      .insert({
-        payment_id: payment.id,
-        user_id: payment.user_id,
-        kind,
-        due_date: payment.due_date,
-        sent_on: todayStr,
-      })
-      .select("id")
-      .single();
+    for (const userId of recipientsOf(payment)) {
+      const chatId = await chatIdFor(userId);
+      if (!chatId) continue;
 
-    if (claimError) {
-      // Someone else already claimed it (or is mid-send) - not an error.
-      if (claimError.code !== UNIQUE_VIOLATION) {
-        errors.push(`claim ${payment.name}/${kind}: ${claimError.message}`);
+      const { data: claim, error: claimError } = await supabase
+        .from("notification_log")
+        .insert({
+          payment_id: payment.id,
+          user_id: userId,
+          kind,
+          due_date: payment.due_date,
+          sent_on: todayStr,
+        })
+        .select("id")
+        .single();
+
+      if (claimError) {
+        // Someone else already claimed it (or is mid-send) - not an error.
+        if (claimError.code !== UNIQUE_VIOLATION) {
+          errors.push(`claim ${payment.name}/${kind}: ${claimError.message}`);
+        }
+        continue;
       }
-      return false;
+
+      try {
+        await sendTelegramMessage(chatId, text, actionButtons(payment));
+        sent += 1;
+      } catch (e) {
+        await supabase.from("notification_log").delete().eq("id", claim.id);
+        throw e;
+      }
     }
 
-    try {
-      await sendTelegramMessage(chatId, text, actionButtons(payment));
-      return true;
-    } catch (e) {
-      await supabase.from("notification_log").delete().eq("id", claim.id);
-      throw e;
-    }
+    return sent;
   }
 
-  /** Same claim-then-send contract as sendOnce, for custom rule schedules. */
+  /**
+   * Same claim-then-send contract as sendOnce, for custom rule schedules.
+   * A rule belongs to one person, so it fires to that person alone - a
+   * shared bill can be one person's "warn me three days out" and the
+   * other's "nag me every two hours". Rules left behind by someone who no
+   * longer has access are skipped rather than deleted.
+   */
   async function fireRuleOnce(
     payment: Payment,
     rule: ReminderRule,
     fireAt: Date
   ): Promise<boolean> {
-    const chatId = await chatIdFor(payment.user_id);
+    if (!recipientsOf(payment).includes(rule.user_id)) return false;
+
+    const chatId = await chatIdFor(rule.user_id);
     if (!chatId) return false;
 
     const { data: claim, error: claimError } = await supabase
@@ -342,7 +414,7 @@ export async function GET(request: NextRequest) {
       .insert({
         rule_id: rule.id,
         payment_id: payment.id,
-        user_id: payment.user_id,
+        user_id: rule.user_id,
         due_date: payment.due_date,
         fire_at: fireAt.toISOString(),
       })
@@ -377,12 +449,11 @@ export async function GET(request: NextRequest) {
       // a long-unpaid bill doesn't turn into daily wallpaper.
       if (remaining < 0 && shouldNagOverdue(-remaining)) {
         const days = -remaining;
-        const sentNow = await sendOnce(
+        sent += await sendOnce(
           payment,
           "overdue",
           `⚠️ <b>${escapeHtml(payment.name)}</b>${formatAmount(payment)} venció hace ${days} día${days === 1 ? "" : "s"} (${payment.due_date}) y sigue sin marcarse como pagado.`
         );
-        if (sentNow) sent += 1;
       }
 
       if (rules.length === 0) {
@@ -394,8 +465,7 @@ export async function GET(request: NextRequest) {
             if (fireAt > now) continue;
             if (now.getTime() - fireAt.getTime() > CATCH_UP_WINDOW_MS) continue;
 
-            const sentNow = await sendOnce(payment, slot.kind, slot.text(payment, remaining));
-            if (sentNow) sent += 1;
+            sent += await sendOnce(payment, slot.kind, slot.text(payment, remaining));
           }
         }
         continue;

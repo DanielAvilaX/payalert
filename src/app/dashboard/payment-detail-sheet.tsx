@@ -15,8 +15,10 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { ModalShell } from "@/app/dashboard/modal-shell";
 import { listPaymentHistory, type PaymentHistoryEntry } from "@/app/dashboard/actions";
+import { listPaymentAccess, type PaymentAccessPerson } from "@/app/dashboard/sharing-actions";
 import { usePaymentActions } from "@/app/dashboard/payment-actions";
 import { LogoBadge, StatusBadge, formatPaymentAmount } from "@/app/dashboard/payment-parts";
 import { RECURRENCE_LABEL, type Payment } from "@/app/dashboard/payment-types";
@@ -81,6 +83,7 @@ function DetailBody({
 }) {
   const actions = usePaymentActions(payment);
   const [history, setHistory] = useState<PaymentHistoryEntry[] | null>(null);
+  const [access, setAccess] = useState<PaymentAccessPerson[]>([]);
 
   // Refetched when is_paid flips, so settling from this sheet shows up in
   // its own history straight away.
@@ -97,6 +100,20 @@ function DetailBody({
       cancelled = true;
     };
   }, [payment.id, payment.is_paid]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listPaymentAccess(payment.id)
+      .then((people) => {
+        if (!cancelled) setAccess(people);
+      })
+      .catch(() => {
+        if (!cancelled) setAccess([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [payment.id]);
 
   const onTimeCount = history?.filter(isOnTime).length ?? 0;
   const amounts = (history ?? [])
@@ -167,6 +184,41 @@ function DetailBody({
           <ExternalLink size={16} />
           Ir a pagar
         </a>
+      )}
+
+      {/* Only worth showing once it's actually shared - on a payment that's
+          just yours, "quién tiene acceso: tú" is noise. */}
+      {access.length > 1 && (
+        <section>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold">Quién tiene acceso</h3>
+            <Link
+              href="/dashboard/compartidas"
+              prefetch={false}
+              onClick={onClose}
+              className="text-xs font-medium text-accent hover:underline"
+            >
+              Gestionar
+            </Link>
+          </div>
+          <ul className="flex flex-wrap gap-1.5">
+            {access.map((person) => (
+              <li
+                key={person.id}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  person.status === "accepted"
+                    ? "bg-surface-2 text-foreground"
+                    : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {person.name}
+                {person.isOwner && <span className="text-muted"> · dueño</span>}
+                {person.status === "pending" && <span> · pendiente</span>}
+                {person.status === "rejected" && <span> · rechazó</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <section>

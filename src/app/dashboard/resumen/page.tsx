@@ -27,7 +27,15 @@ import {
   shiftMonth,
   type IncomeBand,
 } from "@/lib/metrics";
+import {
+  collaboratorsByPayment,
+  filterEventsByScope,
+  filterPaymentsByScope,
+  parseScope,
+  type ShareLink,
+} from "@/lib/scope";
 import { BADGE, formatDueDate, formatMonthName, formatMonthShort, paymentStatus } from "@/lib/payment-status";
+import { ScopeFilter } from "@/app/dashboard/scope-filter";
 import { LogoBadge } from "@/app/dashboard/payment-parts";
 import { RECURRENCE_LABEL, type Payment } from "@/app/dashboard/payment-types";
 import { SpendTrend } from "@/app/dashboard/resumen/spend-trend";
@@ -60,7 +68,14 @@ const BAND_STYLE: Record<IncomeBand, { fill: string; box: string; icon: typeof C
   },
 };
 
-export default async function ResumenPage() {
+export default async function ResumenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ambito?: string | string[]; con?: string | string[] }>;
+}) {
+  const { ambito, con } = await searchParams;
+  const scope = parseScope({ ambito, con });
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -68,19 +83,30 @@ export default async function ResumenPage() {
   const userId = user?.id ?? "";
   const todayStr = colombiaToday();
 
-  const [{ data: paymentsData }, { data: eventsData }] = await Promise.all([
-    supabase.from("payments").select("*").eq("user_id", userId),
+  // No owner filter on either query any more: RLS already limits both to
+  // what this account can see, and on a shared payment the completions are
+  // filed under its owner - pinning to user_id would have hidden every
+  // shared bill's money from the person it was shared with.
+  const [{ data: paymentsData }, { data: eventsData }, { data: sharesData }] = await Promise.all([
+    supabase.from("payments").select("*"),
     supabase
       .from("payment_events")
       .select("id, payment_id, name, amount, due_date, completed_at")
-      .eq("user_id", userId)
       .gte("completed_at", seriesStartISO(todayStr, SERIES_MONTHS))
       .order("completed_at", { ascending: false }),
+    supabase.from("payment_shares").select("payment_id, shared_with, invited_by, status"),
   ]);
 
-  const payments = (paymentsData ?? []) as Payment[];
-  const events = eventsData ?? [];
-  const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+  const allPayments = (paymentsData ?? []) as Payment[];
+  const collaborators = collaboratorsByPayment(
+    allPayments,
+    (sharesData ?? []) as ShareLink[],
+    userId
+  );
+
+  const payments = filterPaymentsByScope(allPayments, scope, collaborators);
+  const events = filterEventsByScope(eventsData ?? [], scope, collaborators);
+  const paymentById = new Map(allPayments.map((payment) => [payment.id, payment]));
 
   const series = monthlySpendSeries(events, todayStr, SERIES_MONTHS);
   const spentThisMonth = series.at(-1)?.total ?? 0;
@@ -185,7 +211,8 @@ export default async function ResumenPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Resumen</h1>
           <p className="mt-1 text-sm text-muted">Cómo se mueve tu plata en tus pagos.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <ScopeFilter className="w-full lg:w-auto lg:overflow-visible" />
+        <div className="flex flex-wrap gap-2 max-lg:w-full">
           <a
             href="/api/export?tipo=historial"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium transition hover:bg-surface-2"

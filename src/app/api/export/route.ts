@@ -24,10 +24,12 @@ export async function GET(request: Request) {
   let csv: string;
 
   if (kind === "pagos") {
+    // No owner filter: RLS already limits this to what the account can see,
+    // and since Resumen counts shared payments the export has to agree with
+    // it - otherwise the CSV silently omits half of a couple's bills.
     const { data, error } = await supabase
       .from("payments")
       .select("name, amount, recurrence, due_date, is_paid, is_paused, is_automatic, notes")
-      .eq("user_id", user.id)
       .order("due_date", { ascending: true });
     if (error) return new Response("No se pudo exportar", { status: 500 });
 
@@ -47,7 +49,6 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("payment_events")
       .select("name, amount, due_date, completed_at")
-      .eq("user_id", user.id)
       .order("completed_at", { ascending: false });
     if (error) return new Response("No se pudo exportar", { status: 500 });
 

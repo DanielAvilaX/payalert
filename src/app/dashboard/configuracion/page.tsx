@@ -29,9 +29,11 @@ export default async function ConfiguracionPage() {
       .from("reminder_rules")
       .select("*, payments(name, logo)")
       .order("created_at", { ascending: false }),
+    // `*` so the page still renders before migration 011 adds
+    // notifications_enabled, instead of failing on an unknown column.
     supabase
       .from("telegram_connections")
-      .select("user_id")
+      .select("*")
       .eq("user_id", user?.id ?? "")
       .maybeSingle(),
   ]);
@@ -50,7 +52,10 @@ export default async function ConfiguracionPage() {
       </Reveal>
 
       <Reveal delay={60}>
-        <TelegramConnect connected={Boolean(telegramConnection)} />
+        <TelegramConnect
+          connected={Boolean(telegramConnection)}
+          notificationsEnabled={telegramConnection?.notifications_enabled !== false}
+        />
       </Reveal>
 
       <Reveal delay={110}>

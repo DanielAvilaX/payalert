@@ -8,11 +8,13 @@ import {
   BarChart3,
   Bell,
   ChevronDown,
+  History,
   House,
   LogOut,
   Receipt,
   Settings,
   UserRound,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
@@ -27,23 +29,40 @@ export type ShellNotification = {
 
 type NavItem = { href: string; label: string; short: string; icon: LucideIcon };
 
-// Perfil stays out of the bottom bar - four targets is the comfortable limit
-// at phone width - and is reached from the avatar menu instead.
 const NAV: NavItem[] = [
   { href: "/dashboard/inicio", label: "Inicio", short: "Inicio", icon: House },
   { href: "/dashboard/pagos", label: "Pagos", short: "Pagos", icon: Receipt },
   { href: "/dashboard/resumen", label: "Resumen", short: "Resumen", icon: BarChart3 },
+  { href: "/dashboard/compartidas", label: "Compartidas", short: "Compartidas", icon: Users },
+  { href: "/dashboard/historial", label: "Historial", short: "Historial", icon: History },
   { href: "/dashboard/configuracion", label: "Configuración", short: "Ajustes", icon: Settings },
   { href: "/dashboard/perfil", label: "Perfil", short: "Perfil", icon: UserRound },
 ];
+
+// Four targets is the comfortable limit at phone width, so the bottom bar
+// is an explicit short list rather than "the first N": everything else -
+// Compartidas, Historial, Perfil - is reached from the avatar menu.
+const BOTTOM_NAV = ["/dashboard/inicio", "/dashboard/pagos", "/dashboard/resumen", "/dashboard/configuracion"];
+const MENU_NAV = ["/dashboard/compartidas", "/dashboard/historial", "/dashboard/perfil"];
 
 const MOBILE_TITLES: Record<string, string> = {
   "/dashboard/inicio": "Inicio",
   "/dashboard/pagos": "Mis Pagos",
   "/dashboard/resumen": "Resumen",
+  "/dashboard/compartidas": "Compartidas",
+  "/dashboard/historial": "Historial",
   "/dashboard/configuracion": "Configuración",
   "/dashboard/perfil": "Perfil",
 };
+
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] leading-none font-semibold text-white">
+      {count}
+    </span>
+  );
+}
 
 const TONE_DOT: Record<ShellNotification["tone"], string> = {
   overdue: "bg-red-500",
@@ -91,12 +110,14 @@ export function AppShell({
   userEmail,
   telegramConnected,
   notifications,
+  pendingInvitations = 0,
   children,
 }: {
   userName: string;
   userEmail: string;
   telegramConnected: boolean;
   notifications: ShellNotification[];
+  pendingInvitations?: number;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -105,7 +126,11 @@ export function AppShell({
 
   return (
     <>
-      <Sidebar pathname={pathname} telegramConnected={telegramConnected} />
+      <Sidebar
+        pathname={pathname}
+        telegramConnected={telegramConnected}
+        pendingInvitations={pendingInvitations}
+      />
 
       <div className="flex min-h-dvh flex-col lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
@@ -123,8 +148,8 @@ export function AppShell({
             </p>
             <div className="hidden lg:block" />
             <div className="flex items-center gap-1 sm:gap-2">
-              <NotificationBell items={notifications} />
-              <UserMenu name={userName} email={userEmail} />
+              <NotificationBell items={notifications} pendingInvitations={pendingInvitations} />
+              <UserMenu name={userName} email={userEmail} pendingInvitations={pendingInvitations} />
             </div>
           </div>
         </header>
@@ -144,7 +169,15 @@ export function AppShell({
   );
 }
 
-function Sidebar({ pathname, telegramConnected }: { pathname: string; telegramConnected: boolean }) {
+function Sidebar({
+  pathname,
+  telegramConnected,
+  pendingInvitations,
+}: {
+  pathname: string;
+  telegramConnected: boolean;
+  pendingInvitations: number;
+}) {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface lg:flex">
       <Link href="/dashboard/inicio" prefetch={false} className="flex h-16 items-center gap-2.5 px-6">
@@ -170,6 +203,7 @@ function Sidebar({ pathname, telegramConnected }: { pathname: string; telegramCo
                 >
                   <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
                   {label}
+                  {href === "/dashboard/compartidas" && <CountBadge count={pendingInvitations} />}
                 </Link>
               </li>
             );
@@ -203,7 +237,7 @@ function BottomNav({ pathname }: { pathname: string }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto grid max-w-lg grid-cols-4">
-        {NAV.slice(0, 4).map(({ href, short, icon: Icon }) => {
+        {BOTTOM_NAV.map((target) => NAV.find((item) => item.href === target)!).map(({ href, short, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <li key={href}>
@@ -226,14 +260,21 @@ function BottomNav({ pathname }: { pathname: string }) {
   );
 }
 
-function NotificationBell({ items }: { items: ShellNotification[] }) {
+function NotificationBell({
+  items,
+  pendingInvitations,
+}: {
+  items: ShellNotification[];
+  pendingInvitations: number;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(open, setOpen, ref);
 
   // The badge counts only what needs action today; "due in 3 days" is
-  // listed inside but doesn't earn a red number on every page.
-  const urgent = items.filter((item) => item.tone !== "soon").length;
+  // listed inside but doesn't earn a red number on every page. An
+  // invitation does: it's waiting on an answer only you can give.
+  const urgent = items.filter((item) => item.tone !== "soon").length + pendingInvitations;
 
   return (
     <div ref={ref} className="relative">
@@ -255,6 +296,22 @@ function NotificationBell({ items }: { items: ShellNotification[] }) {
       {open && (
         <div className="animate-pop-in absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-2 shadow-xl">
           <p className="px-3 pt-2 pb-1 text-sm font-semibold">Notificaciones</p>
+          {pendingInvitations > 0 && (
+            <Link
+              href="/dashboard/compartidas"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+              className="mb-1 flex items-start gap-3 rounded-xl bg-accent-soft px-3 py-2.5 transition hover:brightness-95"
+            >
+              <Users size={16} className="mt-0.5 shrink-0 text-accent" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">
+                  {pendingInvitations} invitación{pendingInvitations === 1 ? "" : "es"} para compartir
+                </span>
+                <span className="block text-xs text-muted">Toca para aceptar o rechazar</span>
+              </span>
+            </Link>
+          )}
           {items.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted">
               Todo al día. No tienes pagos urgentes.
@@ -285,7 +342,15 @@ function NotificationBell({ items }: { items: ShellNotification[] }) {
   );
 }
 
-function UserMenu({ name, email }: { name: string; email: string }) {
+function UserMenu({
+  name,
+  email,
+  pendingInvitations,
+}: {
+  name: string;
+  email: string;
+  pendingInvitations: number;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(open, setOpen, ref);
@@ -297,7 +362,7 @@ function UserMenu({ name, email }: { name: string; email: string }) {
         onClick={() => setOpen((value) => !value)}
         aria-label="Menú de la cuenta"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-xl p-1 transition hover:bg-surface-2 sm:pr-2"
+        className="relative flex items-center gap-2 rounded-xl p-1 transition hover:bg-surface-2 sm:pr-2"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
           {initialsOf(name)}
@@ -313,15 +378,24 @@ function UserMenu({ name, email }: { name: string; email: string }) {
             <p className="text-xs break-all text-muted">{email}</p>
           </div>
           <div className="py-1">
-            <Link
-              href="/dashboard/perfil"
-              prefetch={false}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition hover:bg-surface-2"
-            >
-              <UserRound size={16} className="text-muted" />
-              Perfil
-            </Link>
+            {/* Compartidas and Historial live here rather than in the bottom
+                bar: four targets is all that fits comfortably at phone
+                width, and these two are visited far less than the rest. */}
+            {MENU_NAV.map((target) => NAV.find((item) => item.href === target)!).map(
+              ({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  prefetch={false}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition hover:bg-surface-2"
+                >
+                  <Icon size={16} className="text-muted" />
+                  {label}
+                  {href === "/dashboard/compartidas" && <CountBadge count={pendingInvitations} />}
+                </Link>
+              )
+            )}
             <Link
               href="/dashboard/configuracion"
               prefetch={false}

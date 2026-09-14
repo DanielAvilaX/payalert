@@ -85,6 +85,33 @@ export function parsePaymentUrl(raw: unknown): string | null | undefined {
   }
 }
 
+export const MAX_INVITE_EMAILS = 10;
+
+// Deliberately loose: the authority on whether an address is real is
+// whether it matches an account, which the invite flow checks anyway. This
+// only has to reject the obvious typo before a lookup.
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The invite field takes several addresses at once, separated however the
+ * user felt like typing them - commas, semicolons, spaces or new lines.
+ * Lower-cased and de-duplicated, so "Ale@x.com, ale@x.com" is one person.
+ *
+ * Returns null when something in there isn't an address at all, rather than
+ * quietly dropping it: silently inviting 2 of the 3 people you typed is
+ * worse than being told which one is wrong.
+ */
+export function parseEmailList(raw: unknown): string[] | null {
+  const parts = String(raw ?? "")
+    .split(/[\s,;]+/)
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (parts.length === 0 || parts.length > MAX_INVITE_EMAILS) return null;
+  if (parts.some((part) => !EMAIL.test(part))) return null;
+  return [...new Set(parts)];
+}
+
 /** "HH:MM" (24h) as stored by <input type="time">, or null. */
 export function parseTimeOfDay(raw: unknown): string | null {
   const text = String(raw ?? "").trim();

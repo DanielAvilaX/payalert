@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { dateParts, endOfMonthISO, isSameSchedule } from "../src/lib/dates.ts";
+import { colombiaTime, dateParts, endOfMonthISO, isSameSchedule } from "../src/lib/dates.ts";
 
 test("dateParts reads a date's calendar parts without a local Date", () => {
   assert.deepEqual(dateParts("2026-09-13"), { year: 2026, month: 9, day: 13, weekday: 0 });
@@ -35,4 +35,11 @@ test("isSameSchedule compares the parts each recurrence actually asks for", () =
 
   // Full-date recurrences submit the exact date, so there's nothing to keep.
   assert.equal(isSameSchedule({ due_date: "2026-09-13", recurrence: "none" }, "none", {}), false);
+});
+
+test("colombiaTime reads the wall clock in Bogotá, not the server's", () => {
+  // 17:30 UTC is 12:30 in Colombia.
+  assert.equal(colombiaTime(new Date("2026-09-13T17:30:00Z")), "12:30");
+  // Just past midnight UTC is still the previous evening there.
+  assert.equal(colombiaTime(new Date("2026-09-14T01:05:00Z")), "20:05");
 });

@@ -3,10 +3,18 @@ import { Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { colombiaStartOfMonthISO, colombiaToday } from "@/lib/dates";
 import { bucketPayments } from "@/lib/metrics";
+import {
+  collaboratorsByPayment,
+  filterEventsByScope,
+  filterPaymentsByScope,
+  parseScope,
+  type ShareLink,
+} from "@/lib/scope";
 import { BADGE, formatDueDate, paymentStatus } from "@/lib/payment-status";
 import { AddPaymentButton, PaymentsPreview } from "@/app/dashboard/payments-view";
 import { MonthDonut, type DonutSegment } from "@/app/dashboard/inicio/month-donut";
 import { KpiCardsSection } from "@/app/dashboard/inicio/kpi-cards";
+import { ScopeFilter } from "@/app/dashboard/scope-filter";
 import type { BreakdownRow } from "@/app/dashboard/breakdown-modal";
 import type { Payment } from "@/app/dashboard/payment-types";
 import { Reveal } from "@/app/dashboard/motion";
@@ -57,13 +65,20 @@ function paymentRow(payment: Payment, todayStr: string): BreakdownRow {
   };
 }
 
-export default async function InicioPage() {
+export default async function InicioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ambito?: string | string[]; con?: string | string[] }>;
+}) {
+  const { ambito, con } = await searchParams;
+  const scope = parseScope({ ambito, con });
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [paymentsResult, paidEventsResult, telegramResult] = await Promise.all([
+  const [paymentsResult, paidEventsResult, sharesResult, telegramResult] = await Promise.all([
     supabase.from("payments").select("*").order("due_date", { ascending: true }),
     // Full rows, not just a count: the "Pagos pagados" KPI opens this exact
     // list, so the number on the card and what it expands into can't drift.
@@ -72,6 +87,7 @@ export default async function InicioPage() {
       .select("id, payment_id, name, amount, completed_at")
       .gte("completed_at", colombiaStartOfMonthISO())
       .order("completed_at", { ascending: false }),
+    supabase.from("payment_shares").select("payment_id, shared_with, invited_by, status"),
     supabase
       .from("telegram_connections")
       .select("user_id")
@@ -79,10 +95,20 @@ export default async function InicioPage() {
       .maybeSingle(),
   ]);
 
-  const payments = (paymentsResult.data ?? []) as Payment[];
+  const allPayments = (paymentsResult.data ?? []) as Payment[];
   const todayStr = colombiaToday();
+
+  // Built from every payment, not the filtered list: an event whose payment
+  // is out of scope still has to be classified to be excluded.
+  const collaborators = collaboratorsByPayment(
+    allPayments,
+    (sharesResult.data ?? []) as ShareLink[],
+    user?.id ?? ""
+  );
+
+  const payments = filterPaymentsByScope(allPayments, scope, collaborators);
+  const paidThisMonth = filterEventsByScope(paidEventsResult.data ?? [], scope, collaborators);
   const { soon, overdue, later } = bucketPayments(payments, todayStr);
-  const paidThisMonth = paidEventsResult.data ?? [];
 
   const fullName = (user?.user_metadata?.full_name as string | undefined)?.trim();
   const firstName = fullName?.split(/\s+/)[0] || user?.email?.split("@")[0] || "";
@@ -90,7 +116,7 @@ export default async function InicioPage() {
   // A settled event only stores its own snapshot (name/amount), not a logo -
   // borrow the current one from the live payment when it still exists, so
   // the list doesn't read as a wall of generic icons for no reason.
-  const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paymentById = new Map(allPayments.map((payment) => [payment.id, payment]));
   const paidRows: BreakdownRow[] = paidThisMonth.map((event) => ({
     id: event.payment_id,
     name: event.name,
@@ -123,13 +149,19 @@ export default async function InicioPage() {
         <p className="mt-1 text-sm text-muted">Aquí tienes un resumen de tus pagos.</p>
       </Reveal>
 
+      <ScopeFilter />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
           <KpiCardsSection
             paid={paidRows.length}
             paidRows={paidRows}
             pending={overdue.length + later.length}
-            pendingHint={overdue.length ? `Incluye ${overdue.length} vencido${overdue.length === 1 ? "" : "s"}` : "Este mes"}
+            pendingHint={
+              overdue.length
+                ? `Incluye ${overdue.length} vencido${overdue.length === 1 ? "" : "s"}`
+                : "Este mes"
+            }
             pendingRows={pendingRows}
             soon={soon.length}
             soonRows={soonRows}
