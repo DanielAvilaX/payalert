@@ -1,5 +1,5 @@
 import { colombiaToday } from "@/lib/dates";
-import { collaboratorsByPayment, filterPaymentsByScope, parseScope } from "@/lib/scope";
+import { buildScopeIndex, filterPaymentsByScope, parseScope } from "@/lib/scope";
 import { getCurrentUser, getPayments, getShares } from "@/lib/dashboard-data";
 import { AddPaymentButton, PaymentsView } from "@/app/dashboard/payments-view";
 import { ScopeFilter } from "@/app/dashboard/scope-filter";
@@ -22,7 +22,7 @@ export default async function PagosPage({
   ]);
 
   const payments = paymentsData as Payment[];
-  const collaborators = collaboratorsByPayment(payments, shares, user?.id ?? "");
+  const scopeIndex = buildScopeIndex(payments, shares, user?.id ?? "");
 
   return (
     <div className="space-y-5">
@@ -39,7 +39,7 @@ export default async function PagosPage({
       <ScopeFilter />
 
       <PaymentsView
-        payments={filterPaymentsByScope(payments, scope, collaborators)}
+        payments={filterPaymentsByScope(payments, scope, scopeIndex)}
         todayStr={colombiaToday()}
         initialDetailId={typeof pago === "string" ? pago : undefined}
       />

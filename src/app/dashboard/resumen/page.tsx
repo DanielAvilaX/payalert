@@ -28,7 +28,7 @@ import {
   type IncomeBand,
 } from "@/lib/metrics";
 import {
-  collaboratorsByPayment,
+  buildScopeIndex,
   filterEventsByScope,
   filterPaymentsByScope,
   parseScope,
@@ -96,10 +96,10 @@ export default async function ResumenPage({
 
   const userId = user?.id ?? "";
   const allPayments = paymentsData as Payment[];
-  const collaborators = collaboratorsByPayment(allPayments, shares, userId);
+  const scopeIndex = buildScopeIndex(allPayments, shares, userId);
 
-  const payments = filterPaymentsByScope(allPayments, scope, collaborators);
-  const events = filterEventsByScope(eventsData ?? [], scope, collaborators);
+  const payments = filterPaymentsByScope(allPayments, scope, scopeIndex);
+  const events = filterEventsByScope(eventsData ?? [], scope, scopeIndex);
   const paymentById = new Map(allPayments.map((payment) => [payment.id, payment]));
 
   const series = monthlySpendSeries(events, todayStr, SERIES_MONTHS);

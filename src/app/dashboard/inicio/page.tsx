@@ -10,7 +10,7 @@ import {
   getTelegramConnection,
 } from "@/lib/dashboard-data";
 import {
-  collaboratorsByPayment,
+  buildScopeIndex,
   filterEventsByScope,
   filterPaymentsByScope,
   parseScope,
@@ -101,10 +101,10 @@ export default async function InicioPage({
 
   // Built from every payment, not the filtered list: an event whose payment
   // is out of scope still has to be classified to be excluded.
-  const collaborators = collaboratorsByPayment(allPayments, shares, user?.id ?? "");
+  const scopeIndex = buildScopeIndex(allPayments, shares, user?.id ?? "");
 
-  const payments = filterPaymentsByScope(allPayments, scope, collaborators);
-  const paidThisMonth = filterEventsByScope(paidEventsResult.data ?? [], scope, collaborators);
+  const payments = filterPaymentsByScope(allPayments, scope, scopeIndex);
+  const paidThisMonth = filterEventsByScope(paidEventsResult.data ?? [], scope, scopeIndex);
   const { soon, overdue, later } = bucketPayments(payments, todayStr);
 
   const fullName = (user?.user_metadata?.full_name as string | undefined)?.trim();

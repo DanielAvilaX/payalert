@@ -111,8 +111,16 @@ export function ScopeFilter({ className = "" }: { className?: string }) {
       <button type="button" onClick={() => apply({ kind: "all" })} className={`${base} ${scope.kind === "all" ? active : idle}`}>
         Todos
       </button>
-      <button type="button" onClick={() => apply({ kind: "mine" })} className={`${base} ${scope.kind === "mine" ? active : idle}`}>
-        Solo míos
+      {/* "Míos", not "Solo míos": it keeps everything you created, including
+          what you have shared out - the only thing it drops is what someone
+          else shared with you. */}
+      <button
+        type="button"
+        onClick={() => apply({ kind: "mine" })}
+        title="Los pagos que creaste tú, aunque los hayas compartido"
+        className={`${base} ${scope.kind === "mine" ? active : idle}`}
+      >
+        Míos
       </button>
 
       <div className="flex items-center">
