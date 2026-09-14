@@ -13,7 +13,7 @@ import { DeleteConfirmProvider } from "@/app/dashboard/delete-confirm-context";
 import { RemindersModalProvider } from "@/app/dashboard/reminders-modal-context";
 import { ToastProvider } from "@/app/dashboard/toast-context";
 import { PaymentUIProvider } from "@/app/dashboard/payment-ui-context";
-import { PeopleProvider, type Person } from "@/app/dashboard/sharing-context";
+import { SharingProvider, type Person } from "@/app/dashboard/sharing-context";
 
 // Bills due within this many days show up in the notification bell.
 const BELL_WINDOW_DAYS = 3;
@@ -73,7 +73,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DeleteConfirmProvider>
         <RemindersModalProvider>
           <PaymentUIProvider defaultRemindDaysBefore={defaultRemindDaysBefore}>
-            <PeopleProvider people={people}>
+            <SharingProvider people={people} shares={shares} me={user.id}>
               <AppShell
                 userName={userName}
                 userEmail={user.email ?? ""}
@@ -83,7 +83,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               >
                 {children}
               </AppShell>
-            </PeopleProvider>
+            </SharingProvider>
           </PaymentUIProvider>
         </RemindersModalProvider>
       </DeleteConfirmProvider>

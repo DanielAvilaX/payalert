@@ -7,6 +7,8 @@ import { sortPayments, type Payment } from "@/app/dashboard/payment-types";
 import { PaymentCards, PaymentsTable } from "@/app/dashboard/payments-table";
 import { PaymentDetailSheet } from "@/app/dashboard/payment-detail-sheet";
 import { usePaymentUI } from "@/app/dashboard/payment-ui-context";
+import { useScope, useScopeIndex } from "@/app/dashboard/sharing-context";
+import { filterPaymentsByScope } from "@/lib/scope";
 import { Reveal } from "@/app/dashboard/motion";
 
 type FilterKey = "all" | "pending" | "paid";
@@ -138,9 +140,15 @@ export function PaymentsView({
   const detail = useDetail(initialDetailId);
   const ui = usePaymentUI();
 
+  // Todos / Míos / Compartidos is applied here rather than on the server, so
+  // switching it re-renders this list instead of re-fetching the page.
+  const { scope } = useScope();
+  const scopeIndex = useScopeIndex(payments);
+  const inScope = filterPaymentsByScope(payments, scope, scopeIndex);
+
   const needle = query.trim().toLowerCase();
   const visible = sortPayments(
-    payments.filter((payment) => {
+    inScope.filter((payment) => {
       if (needle && !payment.name.toLowerCase().includes(needle)) return false;
       if (filter === "pending") return !payment.is_paid;
       if (filter === "paid") return payment.is_paid;
@@ -155,7 +163,7 @@ export function PaymentsView({
   // Back to page 1 whenever the search or filter changes, so it never leaves
   // you stranded on a now-empty page. Adjusted during render (not in an
   // effect) to avoid an extra render pass.
-  const filterKey = `${query}|${filter}`;
+  const filterKey = `${query}|${filter}|${scope.kind}|${scope.personId ?? ""}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
@@ -226,6 +234,7 @@ export function PaymentsView({
                 : "Cambia de filtro para ver el resto."}
           </p>
           {payments.length === 0 && <AddPaymentButton className="mt-3" />}
+
         </div>
       )}
       </Reveal>

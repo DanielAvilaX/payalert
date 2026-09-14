@@ -1,6 +1,5 @@
 import { colombiaToday } from "@/lib/dates";
-import { buildScopeIndex, filterPaymentsByScope, parseScope } from "@/lib/scope";
-import { getCurrentUser, getPayments, getShares } from "@/lib/dashboard-data";
+import { getPayments } from "@/lib/dashboard-data";
 import { AddPaymentButton, PaymentsView } from "@/app/dashboard/payments-view";
 import { ScopeFilter } from "@/app/dashboard/scope-filter";
 import type { Payment } from "@/app/dashboard/payment-types";
@@ -9,20 +8,13 @@ import { Reveal } from "@/app/dashboard/motion";
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pago?: string | string[]; ambito?: string | string[]; con?: string | string[] }>;
+  searchParams: Promise<{ pago?: string | string[] }>;
 }) {
-  const { pago, ambito, con } = await searchParams;
-  const scope = parseScope({ ambito, con });
-
-  // Already fetched by the layout - these resolve without a round trip.
-  const [user, paymentsData, shares] = await Promise.all([
-    getCurrentUser(),
-    getPayments(),
-    getShares(),
-  ]);
-
-  const payments = paymentsData as Payment[];
-  const scopeIndex = buildScopeIndex(payments, shares, user?.id ?? "");
+  const { pago } = await searchParams;
+  // Already fetched by the layout - this resolves without a round trip.
+  // Everything is handed over unfiltered: the scope filter runs in the
+  // browser, so switching it costs nothing.
+  const payments = (await getPayments()) as Payment[];
 
   return (
     <div className="space-y-5">
@@ -39,7 +31,7 @@ export default async function PagosPage({
       <ScopeFilter />
 
       <PaymentsView
-        payments={filterPaymentsByScope(payments, scope, scopeIndex)}
+        payments={payments}
         todayStr={colombiaToday()}
         initialDetailId={typeof pago === "string" ? pago : undefined}
       />

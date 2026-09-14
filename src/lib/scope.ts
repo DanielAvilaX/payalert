@@ -10,28 +10,6 @@ export type Scope = {
 
 export const ALL_SCOPE: Scope = { kind: "all" };
 
-/** The query string the filter reads and writes: ?ambito=mios / ?ambito=compartidos&con=<id> */
-export function parseScope(params: {
-  ambito?: string | string[];
-  con?: string | string[];
-}): Scope {
-  const kind = typeof params.ambito === "string" ? params.ambito : "";
-  const person = typeof params.con === "string" ? params.con : "";
-  if (kind === "mios") return { kind: "mine" };
-  if (kind === "compartidos") return { kind: "shared", personId: person || null };
-  return ALL_SCOPE;
-}
-
-export function scopeToQuery(scope: Scope): Record<string, string> {
-  if (scope.kind === "mine") return { ambito: "mios" };
-  if (scope.kind === "shared") {
-    return scope.personId
-      ? { ambito: "compartidos", con: scope.personId }
-      : { ambito: "compartidos" };
-  }
-  return {};
-}
-
 export type ShareLink = {
   payment_id: string;
   shared_with: string;

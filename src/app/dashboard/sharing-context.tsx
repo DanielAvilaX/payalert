@@ -1,18 +1,72 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { ALL_SCOPE, buildScopeIndex, type PaymentScope, type Scope, type ShareLink } from "@/lib/scope";
 
 export type Person = { id: string; name: string | null; email: string | null };
 
-/** Everyone you share something with, resolved once in the dashboard layout. */
-const PeopleContext = createContext<Person[]>([]);
+type SharingValue = {
+  /** Everyone you share something with, for the "filtrar por persona" picker. */
+  people: Person[];
+  shares: ShareLink[];
+  me: string;
+};
 
-export function PeopleProvider({ people, children }: { people: Person[]; children: ReactNode }) {
-  return <PeopleContext.Provider value={people}>{children}</PeopleContext.Provider>;
+const SharingContext = createContext<SharingValue>({ people: [], shares: [], me: "" });
+
+/**
+ * Scope lives in React state, not in the URL.
+ *
+ * It started as a query parameter so the server could read it, which meant
+ * every click on Todos/Míos/Compartidos was a full round trip that re-ran
+ * the page's database queries - about a second each, and worse when clicks
+ * queued up behind one another. Nothing about the filter needs the server:
+ * the payments are already in the browser and the filtering is arithmetic.
+ * Holding it here also keeps the choice while you move between Inicio,
+ * Pagos and Resumen, since this provider outlives those navigations.
+ */
+const ScopeContext = createContext<{ scope: Scope; setScope: (scope: Scope) => void }>({
+  scope: ALL_SCOPE,
+  setScope: () => {},
+});
+
+export function SharingProvider({
+  people,
+  shares,
+  me,
+  children,
+}: {
+  people: Person[];
+  shares: ShareLink[];
+  me: string;
+  children: ReactNode;
+}) {
+  const [scope, setScope] = useState<Scope>(ALL_SCOPE);
+  const sharing = useMemo(() => ({ people, shares, me }), [people, shares, me]);
+  const scopeValue = useMemo(() => ({ scope, setScope }), [scope]);
+
+  return (
+    <SharingContext.Provider value={sharing}>
+      <ScopeContext.Provider value={scopeValue}>{children}</ScopeContext.Provider>
+    </SharingContext.Provider>
+  );
 }
 
 export function usePeople() {
-  return useContext(PeopleContext);
+  return useContext(SharingContext).people;
+}
+
+export function useScope() {
+  return useContext(ScopeContext);
+}
+
+/** Ownership and company for the payments a given screen is showing. */
+export function useScopeIndex(payments: Array<{ id: string; user_id: string }>) {
+  const { shares, me } = useContext(SharingContext);
+  return useMemo<Map<string, PaymentScope>>(
+    () => buildScopeIndex(payments, shares, me),
+    [payments, shares, me]
+  );
 }
 
 export function personLabel(person: Person | undefined): string {
