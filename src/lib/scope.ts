@@ -9,6 +9,7 @@ export type Scope = {
 };
 
 export const ALL_SCOPE: Scope = { kind: "all" };
+export const MINE_SCOPE: Scope = { kind: "mine" };
 
 export type ShareLink = {
   payment_id: string;

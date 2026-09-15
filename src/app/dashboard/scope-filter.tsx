@@ -56,9 +56,11 @@ export function ScopeFilter({ className = "" }: { className?: string }) {
     };
   }, [open]);
 
-  // Nobody to share with means every payment is "mine": the filter would be
-  // three buttons that all show the same list.
-  if (people.length === 0 && scope.kind === "all") return null;
+  // Nobody to share with means "mine" and "all" show the same list, so the
+  // filter would be three buttons with nothing to actually choose between.
+  // Left visible for "shared" so a stale selection (someone just removed)
+  // still has a way back to "Míos".
+  if (people.length === 0 && scope.kind !== "shared") return null;
 
   const needle = query.trim().toLowerCase();
   const visible = needle

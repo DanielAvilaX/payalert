@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { ALL_SCOPE, buildScopeIndex, type PaymentScope, type Scope, type ShareLink } from "@/lib/scope";
+import { buildScopeIndex, MINE_SCOPE, type PaymentScope, type Scope, type ShareLink } from "@/lib/scope";
 
 export type Person = { id: string; name: string | null; email: string | null };
 
@@ -24,9 +24,13 @@ const SharingContext = createContext<SharingValue>({ people: [], shares: [], me:
  * the payments are already in the browser and the filtering is arithmetic.
  * Holding it here also keeps the choice while you move between Inicio,
  * Pagos and Resumen, since this provider outlives those navigations.
+ *
+ * Starts on "Míos": most people share nothing at first, and even once they
+ * do, what's actually yours is the useful default - "Todos" mixes in a
+ * roommate's or partner's bills before you've asked to see them.
  */
 const ScopeContext = createContext<{ scope: Scope; setScope: (scope: Scope) => void }>({
-  scope: ALL_SCOPE,
+  scope: MINE_SCOPE,
   setScope: () => {},
 });
 
@@ -41,7 +45,7 @@ export function SharingProvider({
   me: string;
   children: ReactNode;
 }) {
-  const [scope, setScope] = useState<Scope>(ALL_SCOPE);
+  const [scope, setScope] = useState<Scope>(MINE_SCOPE);
   const sharing = useMemo(() => ({ people, shares, me }), [people, shares, me]);
   const scopeValue = useMemo(() => ({ scope, setScope }), [scope]);
 
